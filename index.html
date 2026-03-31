@@ -208,6 +208,7 @@
   <button onclick="exportJSON()">Download Save File</button>
   <button onclick="document.getElementById('importFile').click()">Load Save File</button>
   <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
+  <button onclick="exportCSV()">Export CSV</button>
   <button onclick="exportText()">Export Guest List</button>
   <button onclick="autoSeat()">Auto-Fill Empty</button>
   <button onclick="window.print()">Print / Save PDF</button>
@@ -835,6 +836,23 @@ function importJSON(e) {
   };
   reader.readAsText(file);
   e.target.value = '';
+}
+function exportCSV() {
+  const rows = [['Guest Name', 'Table', 'Seat']];
+  for (const tid in tables) {
+    const label = tid === 'head' ? 'Head Table' : tables[tid].label;
+    seatAssignments[tid].forEach((name, i) => {
+      if (name) rows.push([name, label, i + 1]);
+    });
+  }
+  // Sort alphabetically by guest name
+  rows.sort((a, b) => a === rows[0] ? -1 : b === rows[0] ? 1 : a[0].localeCompare(b[0]));
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'seating-chart.csv';
+  a.click();
 }
 function exportText() {
   let text = 'BORA & JIM - SEATING CHART\nMay 9, 2026 - Rancho Las Lomas\n\n';
