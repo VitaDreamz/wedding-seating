@@ -844,15 +844,19 @@ function importJSON(e) {
   e.target.value = '';
 }
 function exportCSV() {
-  const rows = [['Guest Name', 'Table', 'Seat']];
+  const rows = [['First Name', 'Last Name', 'Table', 'Seat']];
   for (const tid in tables) {
     const label = tid === 'head' ? 'Head Table' : tables[tid].label;
     seatAssignments[tid].forEach((name, i) => {
-      if (name) rows.push([name, label, tid === 'head' ? HEAD_SEAT_NUM[i] : i + 1]);
+      if (!name) return;
+      const lastSpace = name.lastIndexOf(' ');
+      const first = lastSpace > 0 ? name.substring(0, lastSpace) : name;
+      const last = lastSpace > 0 ? name.substring(lastSpace + 1) : '';
+      rows.push([first, last, label, tid === 'head' ? HEAD_SEAT_NUM[i] : i + 1]);
     });
   }
-  // Sort alphabetically by guest name
-  rows.sort((a, b) => a === rows[0] ? -1 : b === rows[0] ? 1 : a[0].localeCompare(b[0]));
+  // Sort alphabetically by last name, then first name
+  rows.sort((a, b) => a === rows[0] ? -1 : b === rows[0] ? 1 : (a[1].localeCompare(b[1]) || a[0].localeCompare(b[0])));
   const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
   const blob = new Blob([csv], {type:'text/csv'});
   const a = document.createElement('a');
