@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bora & Jim - Seating Chart | May 9, 2026</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root {
+    --bg: #faf8f5;
+    --card: #ffffff;
+    --accent: #b08968;
+    --accent-light: #ddb892;
+    --accent-dark: #7f5539;
+    --text: #3d3d3d;
+    --text-light: #8a8a8a;
+    --border: #e8e0d8;
+    --seat-empty: #f0ebe5;
+    --seat-filled: #d4edda;
+    --seat-hover: #fff3e0;
+    --head-table-bg: #fff8e1;
+    --danger: #ef5350;
+    --shadow: 0 2px 8px rgba(0,0,0,0.07);
+    --seat-w: 120px;
+    --seat-h: 32px;
+    --seat-gap: 2px;
+    --seg-pad: 1px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background:var(--bg); color:var(--text); }
+
+  /* ===== HEADER ===== */
+  header { text-align:center; padding:1.5rem 1rem 0.8rem; background:linear-gradient(135deg,#faf8f5,#f0ebe5); border-bottom:1px solid var(--border); }
+  header h1 { font-family:Georgia,'Times New Roman',serif; font-weight:400; font-size:2rem; color:var(--accent-dark); letter-spacing:2px; }
+  header p { color:var(--text-light); margin-top:0.2rem; font-size:0.9rem; }
+
+  /* ===== STATS ===== */
+  .stats-bar { display:flex; justify-content:center; gap:1.8rem; padding:0.6rem; background:var(--card); border-bottom:1px solid var(--border); font-size:0.82rem; flex-wrap:wrap; }
+  .stat { color:var(--text-light); }
+  .stat strong { color:var(--accent-dark); font-size:1.05rem; }
+
+  /* ===== CONTROLS ===== */
+  .controls { display:flex; justify-content:center; gap:0.5rem; padding:0.6rem; flex-wrap:wrap; background:var(--card); border-bottom:1px solid var(--border); }
+  .controls button { padding:0.45rem 0.9rem; border:1px solid var(--border); border-radius:6px; background:var(--card); color:var(--text); cursor:pointer; font-size:0.82rem; transition:all 0.2s; }
+  .controls button:hover { background:var(--accent-light); color:#fff; border-color:var(--accent-light); }
+  .controls button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .controls button.primary:hover { background:var(--accent-dark); }
+  .controls button.danger { color:var(--danger); border-color:var(--danger); }
+  .controls button.danger:hover { background:var(--danger); color:#fff; }
+  .controls button:disabled { opacity:0.4; cursor:not-allowed; }
+
+  /* ===== MAIN LAYOUT ===== */
+  .main-layout { display:flex; min-height:calc(100vh - 150px); }
+
+  /* ===== SIDEBAR ===== */
+  .guest-sidebar { width:260px; min-width:260px; background:var(--card); border-right:1px solid var(--border); display:flex; flex-direction:column; }
+  .sidebar-header { padding:0.7rem; border-bottom:1px solid var(--border); }
+  .sidebar-header h3 { font-size:0.85rem; color:var(--accent-dark); margin-bottom:0.4rem; }
+  .search-box { width:100%; padding:0.45rem 0.6rem; border:1px solid var(--border); border-radius:6px; font-size:0.82rem; outline:none; }
+  .search-box:focus { border-color:var(--accent); }
+  .guest-list { flex:1; overflow-y:auto; padding:0.4rem; }
+  .guest-item { padding:0.4rem 0.55rem; margin-bottom:1px; border-radius:4px; font-size:0.8rem; cursor:grab; transition:background 0.15s; user-select:none; }
+  .guest-item:hover { background:var(--seat-hover); }
+  .guest-item.seated { opacity:0.4; text-decoration:line-through; cursor:default; }
+  .guest-item.dismissed { opacity:0.35; text-decoration:line-through; cursor:default; font-style:italic; }
+  .guest-item .dismiss-btn {
+    margin-left:auto; padding:1px 5px; border:1px solid var(--border); border-radius:3px;
+    background:none; color:var(--text-light); font-size:0.65rem; cursor:pointer; flex-shrink:0;
+  }
+  .guest-item .dismiss-btn:hover { background:var(--danger); color:#fff; border-color:var(--danger); }
+  .guest-item .restore-btn {
+    margin-left:auto; padding:1px 5px; border:1px solid var(--accent-light); border-radius:3px;
+    background:none; color:var(--accent); font-size:0.65rem; cursor:pointer; flex-shrink:0;
+  }
+  .guest-item .restore-btn:hover { background:var(--accent); color:#fff; }
+  .guest-item { display:flex; align-items:center; gap:4px; }
+  .guest-item.dragging { opacity:0.5; background:var(--accent-light); }
+
+  /* ===== FLOOR PLAN ===== */
+  .floor-plan { flex:1; overflow:auto; padding:1.5rem 1.5rem 1.5rem 0; }
+  .venue { display:flex; gap:60px; min-width:2600px; min-height:850px; }
+
+  /* Left zone: head table area — flush left, vertically centered */
+  .left-zone { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:40px; flex-shrink:0; }
+
+  /* Right zone: banquet rows — vertically centered, spread out to fill height */
+  .right-zone { display:flex; flex-direction:column; justify-content:space-between; flex:1; padding:10px 0; }
+
+  /* ===== BANQUET ROW (joined tables, horizontal) ===== */
+  .banquet-row { display:flex; flex-direction:column; align-items:flex-end; }
+  .left-zone .banquet-row { align-items:flex-start; }
+  .banquet-row .row-seats { display:flex; gap:0; align-items:center; }
+  .banquet-row .table-surface-row { display:flex; border:2px solid var(--border); border-radius:4px; background:var(--card); box-shadow:var(--shadow); }
+  .banquet-row .table-segment { display:flex; align-items:center; justify-content:center; height:32px; border-right:1px solid var(--border); }
+  .banquet-row .table-segment:last-child { border-right:none; }
+  .banquet-row .table-segment .tnum { font-size:0.85rem; font-weight:600; color:var(--accent-dark); }
+
+  /* Table segment seats group — 1px extra on sides to align with table border */
+  .seg-seats { display:flex; gap:var(--seat-gap); padding:0 var(--seg-pad); }
+
+  /* ===== HEAD TABLE (vertical) ===== */
+  .head-table-area { display:flex; gap:4px; align-items:stretch; }
+  .head-col { display:flex; flex-direction:column; gap:2px; }
+  .head-col .seat { width:var(--seat-w); min-width:var(--seat-w); }
+  .head-surface { width:40px; background:var(--head-table-bg); border:2px solid var(--accent-light); border-radius:6px; box-shadow:var(--shadow); display:flex; align-items:center; justify-content:center; position:relative; }
+  .head-surface .label { writing-mode:vertical-rl; text-orientation:mixed; font-size:0.7rem; font-weight:600; color:var(--accent-dark); letter-spacing:1px; }
+
+  /* ===== SEAT ===== */
+  .seat {
+    width:var(--seat-w); height:var(--seat-h);
+    border:1.5px solid var(--border); border-radius:4px;
+    font-size:0.72rem; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; background:var(--seat-empty); transition:all 0.15s;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    padding:0 4px; position:relative;
+  }
+  .seat:hover { background:var(--seat-hover); border-color:var(--accent); z-index:2; }
+  .seat.filled { background:var(--seat-filled); border-color:#a5d6a7; font-weight:500; cursor:grab; }
+  .seat.filled.dragging-seat { opacity:0.5; background:var(--accent-light); }
+  .seat.selected { outline:2.5px solid #e6a817; outline-offset:-1px; background:#fff8e1; z-index:2; }
+  .seat.drag-over { background:var(--accent-light); border-color:var(--accent); transform:scale(1.08); z-index:3; }
+  .seat .remove-btn {
+    display:none; position:absolute; top:-4px; right:-4px;
+    width:15px; height:15px; background:var(--danger); color:#fff;
+    border:none; border-radius:50%; font-size:0.6rem; cursor:pointer;
+    align-items:center; justify-content:center; line-height:1; z-index:4;
+  }
+  .seat.filled:hover .remove-btn { display:flex; }
+  .seat-spacer { width:var(--seat-w); height:var(--seat-h); visibility:hidden; }
+
+  .selection-info { position:fixed; bottom:20px; right:20px; background:var(--accent-dark); color:#fff; padding:0.5rem 1rem; border-radius:8px; font-size:0.85rem; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.2); display:none; }
+  .selection-info.show { display:flex; align-items:center; gap:0.8rem; }
+  .selection-info button { background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.3); color:#fff; padding:3px 10px; border-radius:4px; cursor:pointer; font-size:0.78rem; }
+  .selection-info button:hover { background:rgba(255,255,255,0.35); }
+
+  /* ===== MODAL ===== */
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center; }
+  .modal-overlay.active { display:flex; }
+  .modal { background:var(--card); border-radius:12px; padding:1.5rem; max-width:420px; width:90%; box-shadow:0 8px 30px rgba(0,0,0,0.15); }
+  .modal h3 { margin-bottom:0.8rem; color:var(--accent-dark); font-size:1rem; }
+  .modal select,.modal input { width:100%; padding:0.55rem; border:1px solid var(--border); border-radius:6px; font-size:0.88rem; margin-bottom:0.7rem; }
+  .modal .or-text { text-align:center; color:var(--text-light); font-size:0.78rem; margin-bottom:0.5rem; }
+  .modal-actions { display:flex; gap:0.5rem; justify-content:flex-end; }
+  .modal-actions button { padding:0.5rem 1.2rem; border:1px solid var(--border); border-radius:6px; cursor:pointer; font-size:0.85rem; background:var(--card); }
+  .modal-actions .assign-btn { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .modal-actions .assign-btn:hover { background:var(--accent-dark); }
+
+  @page { size: landscape; margin: 0.3in; }
+  @media print {
+    :root { --seat-w:28px; --seat-h:80px; --seat-gap:1px; --seg-pad:1px; }
+    .guest-sidebar,.controls,.stats-bar,.selection-info,.remove-btn { display:none !important; }
+    body { background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    header { padding:0.3rem; border:none; background:none; }
+    header h1 { font-size:1.2rem; }
+    header p { font-size:0.7rem; }
+    .main-layout { min-height:unset; }
+    .floor-plan { padding:0; overflow:visible; flex:1; }
+    .venue { min-width:unset; min-height:unset; gap:20px; }
+    .left-zone { gap:8px; }
+    .right-zone { padding:3px 0; }
+    .seat {
+      writing-mode:vertical-rl; text-orientation:mixed;
+      font-size:7pt; padding:2px 1px; border:1px solid #bbb;
+      white-space:normal; overflow:hidden; line-height:1.1;
+      text-overflow:clip; word-break:break-all;
+    }
+    .head-col .seat { min-width:var(--seat-w); writing-mode:horizontal-tb; width:80px; height:28px; white-space:nowrap; word-break:normal; }
+    .head-col { gap:1px; }
+    .head-surface { width:18px; }
+    .head-surface .label { font-size:0.45rem; }
+    .head-table-area { gap:2px; }
+    .seg-seats { gap:1px; }
+    .banquet-row .table-segment { height:22px; }
+    .banquet-row .table-segment .tnum { font-size:0.55rem; }
+    .banquet-row .table-surface-row { border:1px solid #bbb; }
+    .banquet-row .row-seats { margin:1px 0 !important; }
+    .seat.filled { background:#d4edda !important; border-color:#a5d6a7 !important; }
+    .seat:not(.filled) { background:#f5f5f5 !important; }
+    .seat-spacer { width:80px; height:28px; }
+  }
+  @media (max-width:900px) {
+    .main-layout { flex-direction:column; }
+    .guest-sidebar { width:100%; min-width:unset; height:220px; border-right:none; border-bottom:1px solid var(--border); }
+    .floor-plan { overflow:auto; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Bora & Jim</h1>
+  <p>May 9, 2026 &middot; Rancho Las Lomas &middot; Reception Seating Chart</p>
+</header>
+
+<div class="stats-bar">
+  <span class="stat">Total Guests: <strong id="totalGuests">0</strong></span>
+  <span class="stat">Seated: <strong id="seatedCount">0</strong></span>
+  <span class="stat">Unseated: <strong id="unseatedCount">0</strong></span>
+  <span class="stat">Total Seats: <strong id="totalSeats">0</strong></span>
+  <span class="stat">Open Seats: <strong id="openSeats">0</strong></span>
+</div>
+
+<div class="controls">
+  <button onclick="undo()" id="undoBtn" disabled title="Ctrl+Z">↩ Undo</button>
+  <button onclick="redo()" id="redoBtn" disabled title="Ctrl+Shift+Z">↪ Redo</button>
+  <button class="primary" onclick="saveChart()">Save to Browser</button>
+  <button onclick="loadChart()">Load from Browser</button>
+  <button onclick="exportJSON()">Download Save File</button>
+  <button onclick="document.getElementById('importFile').click()">Load Save File</button>
+  <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
+  <button onclick="exportText()">Export Guest List</button>
+  <button onclick="autoSeat()">Auto-Fill Empty</button>
+  <button onclick="window.print()">Print / Save PDF</button>
+  <button class="danger" onclick="clearAll()">Clear All</button>
+</div>
+
+<div class="main-layout">
+  <div class="guest-sidebar">
+    <div class="sidebar-header">
+      <h3>Guest List</h3>
+      <input type="text" class="search-box" id="guestSearch" placeholder="Search guests..." oninput="filterGuests()">
+    </div>
+    <div class="guest-list" id="guestList"></div>
+  </div>
+
+  <div class="floor-plan">
+    <div class="venue" id="venue"></div>
+  </div>
+</div>
+
+<div class="selection-info" id="selectionInfo">
+  <span id="selectionCount">0 selected</span>
+  <button onclick="clearSelection()">Clear (Esc)</button>
+</div>
+
+<div class="modal-overlay" id="assignModal">
+  <div class="modal">
+    <h3 id="modalTitle">Assign Seat</h3>
+    <select id="guestSelect"><option value="">-- Select a guest --</option></select>
+    <p class="or-text">or type a custom name:</p>
+    <input type="text" id="customName" placeholder="Custom name...">
+    <div class="modal-actions">
+      <button onclick="closeModal()">Cancel</button>
+      <button class="assign-btn" onclick="confirmAssign()">Assign</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== GUEST DATA =====
+const guestData = [
+  {name:"Fiona Metaliaj",plus:0},{name:"Marcela Metaliaj",plus:0},{name:"Milazim Berisha",plus:1},
+  {name:"Fahri Metaliaj",plus:0},{name:"Antea Metaliaj",plus:1},{name:"Erblina Metaliaj",plus:1},
+  {name:"Shawn Gammella",plus:0},{name:"Andi Metaliaj",plus:0},{name:"Donika Metaliaj",plus:1,plusName:"Afrim Metaliaj"},
+  {name:"Eda Metaliaj",plus:0},{name:"Bojan Veselic",plus:0},{name:"Tim Elezi",plus:0},
+  {name:"Hava Elezi",plus:0},{name:"Shpresa Elezi",plus:1},{name:"Mereme Lekaj",plus:1},
+  {name:"Leyla Kukaj",plus:1},{name:"Sabrina Elezi",plus:0},{name:"Ruby Craker",plus:0},
+  {name:"Edvin Metalia",plus:0},{name:"Vileza Bauta",plus:0},{name:"Idriz Bauta",plus:0},
+  {name:"Shea Mercado",plus:1},{name:"Soleil Nagoda",plus:1},{name:"Jennifer Graeffe",plus:1},
+  {name:"Laura Ramirez",plus:0},{name:"Jess Luszczyk",plus:1},{name:"Kenny Zherka",plus:0},
+  {name:"Oren Arbit",plus:1},{name:"Jonny Sachs",plus:0},{name:"Gabe Ansel",plus:1},
+  {name:"Lindita Metaliaj",plus:0},{name:"Joey Bonutto",plus:0},
+  {name:"Egid Metaliaj",plus:3},{name:"John Bonutto",plus:0},
+  {name:"Mimoza Berisha",plus:0},{name:"Kujtim Berisha",plus:0},{name:"Asllan Berisha",plus:0},
+  {name:"Ehad Berisha",plus:1},{name:"Justin Gammella",plus:1,plusName:"Laurelle Montagne"},
+  {name:"Isabelle Vannucci",plus:0},{name:"Arjeta Xhetani",plus:1},{name:"Kylie Johnston",plus:0},
+  {name:"Jesse Rapaport",plus:1},{name:"Amanda Greer",plus:0},{name:"John Raesly",plus:0},
+  {name:"Jeena Raesly",plus:1},{name:"Sherry Smith-Bonutto",plus:0},{name:"Izzy Johnson",plus:1},
+  {name:"Bobby Holmes",plus:1},{name:"Michelle Church",plus:0},{name:"Terri Zamora",plus:1},
+  {name:"Lori Dameron",plus:1},{name:"Nicole (Cousin)",plus:1},{name:"Adam Radpour",plus:0},
+  {name:"Vincent Dale",plus:1},{name:"Joanna Lovett",plus:1},{name:"Larry Juba",plus:1},
+  {name:"Nancy Bertschy",plus:1},{name:"Vishal Gaglani",plus:1},{name:"Karen Daniels",plus:1},
+  {name:"Brian Kennedy",plus:1},{name:"Chuck Zamora",plus:0},{name:"Eric Michelman",plus:0},
+  {name:"Nick Isaacs",plus:0},{name:"Andres Barahona",plus:0},{name:"Debbie Angle",plus:1},
+  {name:"Evan Zamora",plus:1},{name:"Mike Zamora",plus:1},{name:"Michael Amador",plus:0},
+  {name:"Sebastian Baron",plus:1},{name:"Tim Welch",plus:1},{name:"Eric Ronan",plus:0},
+  {name:"Tim Kinzer",plus:0},{name:"Jack Michelman",plus:0},{name:"Amy Kleinhenz",plus:0},
+  {name:"Russell Francis",plus:0},{name:"Tima Roper",plus:1},{name:"Shpresa Nela",plus:0},
+  {name:"Erin Anderson",plus:0},{name:"Teresa Bonutto",plus:0},{name:"Esli Reli",plus:1},
+  {name:"Shazimete (Family)",plus:3},{name:"Bonnie Zamora",plus:0},
+  {name:"Linda Michelman",plus:0},{name:"Christy Urso",plus:1},{name:"Steve Perry",plus:1},
+  {name:"Diana Bardhi",plus:1},{name:"Ujeza Berisha",plus:1},{name:"Patty Sulich",plus:0},
+  {name:"Grace Schwartz",plus:0},{name:"Ron Tendler",plus:1},{name:"Bora Metaliaj",plus:0},
+  {name:"Allen Datikashvili",plus:0},{name:"Nicholas Galante",plus:0},{name:"Julie Elezi",plus:1},
+  {name:"Joey Ramirez",plus:0},{name:"Camille Bai",plus:0},{name:"Tammy Huntley",plus:1},
+  {name:"Artila Metaliaj",plus:1},{name:"Nadya Nisanov",plus:0},{name:"Johnny Sullivan",plus:0},
+  {name:"Karen Halverson",plus:1},{name:"Kole Wernowsky",plus:1},{name:"Enerson Ceka",plus:0},
+  {name:"Ilir Metalija",plus:1},{name:"Nick Zamora",plus:0},{name:"James Bonutto",plus:0},
+  {name:"Kelly Landberg",plus:1},{name:"Massimo Gammella",plus:0},{name:"Daniel Owen",plus:0},
+  {name:"Brikend Behrami",plus:0},{name:"Souki Gonzalez",plus:0},{name:"Teresa Grauss",plus:1},
+  {name:"Adelina Salko",plus:0},{name:"Granit Lahu",plus:0}
+];
+
+const allGuests = [];
+guestData.forEach(g => {
+  allGuests.push(g.name);
+  if (g.plus > 0) {
+    if (g.plusName) {
+      allGuests.push(g.plusName);
+      for (let i = 1; i < g.plus; i++) allGuests.push(`${g.name} +${i+1}`);
+    } else if (g.plus === 1) {
+      allGuests.push(`${g.name} +1`);
+    } else {
+      for (let i = 1; i <= g.plus; i++) allGuests.push(`${g.name} +${i}`);
+    }
+  }
+});
+
+// ===== TABLE DEFINITIONS =====
+// Each table: id, seats per side (top/left), seats per side (bottom/right)
+// For banquet rows: tables are joined horizontally, seats on top and bottom
+// For head table: vertical, seats on left and right
+
+const tables = {
+  // Head table: 12 seats on left side, 8 on right (middle 4 removed)
+  // We'll model as: left has 12 seats (indices 0-11), right has top 4 (12-15), gap, bottom 4 (16-19)
+  head: { label:'Head Table', seats:20 },
+  // Tables 1-2 joined: 8 top, 8 bottom
+  '1': { label:'1', seats:8 }, // 4 top + 4 bottom
+  '2': { label:'2', seats:8 },
+  // Tables 3-4 joined
+  '3': { label:'3', seats:8 },
+  '4': { label:'4', seats:8 },
+  // Tables 5-9: each 4 top + 4 bottom = 8 each
+  '5': { label:'5', seats:8 },
+  '6': { label:'6', seats:8 },
+  '7': { label:'7', seats:8 },
+  '8': { label:'8', seats:8 },
+  '9': { label:'9', seats:8 },
+  // Tables 10-14: 4 top + 4 bottom = 8 each
+  '10': { label:'10', seats:8 },
+  '11': { label:'11', seats:8 },
+  '12': { label:'12', seats:8 },
+  '13': { label:'13', seats:8 },
+  '14': { label:'14', seats:8 },
+  // Tables 15-19: 4+4=8 each
+  '15': { label:'15', seats:8 },
+  '16': { label:'16', seats:8 },
+  '17': { label:'17', seats:8 },
+  '18': { label:'18', seats:8 },
+  '19': { label:'19', seats:8 },
+};
+
+// Seat assignments: tableId -> array of guest names
+const seatAssignments = {};
+for (const id in tables) {
+  seatAssignments[id] = new Array(tables[id].seats).fill('');
+}
+
+// Dismissed guests: plus-ones or others accounted for by custom names
+const dismissedGuests = new Set();
+
+// ===== UNDO / REDO =====
+const undoStack = [];
+const redoStack = [];
+const MAX_UNDO = 50;
+
+function snapshot() {
+  const state = {};
+  for (const tid in seatAssignments) state[tid] = [...seatAssignments[tid]];
+  return state;
+}
+
+function pushUndo() {
+  undoStack.push(snapshot());
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  redoStack.length = 0; // clear redo on new action
+  updateUndoButtons();
+}
+
+function restoreSnapshot(state) {
+  for (const tid in state) {
+    if (seatAssignments[tid]) seatAssignments[tid] = [...state[tid]];
+  }
+}
+
+function undo() {
+  if (undoStack.length === 0) return;
+  redoStack.push(snapshot());
+  restoreSnapshot(undoStack.pop());
+  updateUndoButtons();
+  renderVenue(); renderGuestList();
+}
+
+function redo() {
+  if (redoStack.length === 0) return;
+  undoStack.push(snapshot());
+  restoreSnapshot(redoStack.pop());
+  updateUndoButtons();
+  renderVenue(); renderGuestList();
+}
+
+function updateUndoButtons() {
+  document.getElementById('undoBtn').disabled = undoStack.length === 0;
+  document.getElementById('redoBtn').disabled = redoStack.length === 0;
+}
+
+let currentSeatRef = null;
+
+// ===== SELECTION STATE =====
+const selectedSeats = new Set(); // Set of "tableId:idx" keys
+
+function seatKey(tableId, idx) { return `${tableId}:${idx}`; }
+
+function toggleSelect(tableId, idx) {
+  const key = seatKey(tableId, idx);
+  if (selectedSeats.has(key)) selectedSeats.delete(key);
+  else selectedSeats.add(key);
+  updateSelectionUI();
+}
+
+function clearSelection() {
+  selectedSeats.clear();
+  updateSelectionUI();
+  document.querySelectorAll('.seat.selected').forEach(el => el.classList.remove('selected'));
+}
+
+function updateSelectionUI() {
+  const info = document.getElementById('selectionInfo');
+  const count = selectedSeats.size;
+  if (count > 0) {
+    info.classList.add('show');
+    document.getElementById('selectionCount').textContent = `${count} selected`;
+  } else {
+    info.classList.remove('show');
+  }
+  // Update seat visual state
+  document.querySelectorAll('.seat').forEach(el => {
+    const tid = el.dataset.table;
+    const sidx = el.dataset.idx;
+    if (tid != null) {
+      el.classList.toggle('selected', selectedSeats.has(seatKey(tid, parseInt(sidx))));
+    }
+  });
+}
+
+// ===== SEAT HTML =====
+function seatHTML(tableId, idx, seatNum) {
+  const name = seatAssignments[tableId][idx];
+  const filled = name ? 'filled' : '';
+  const sel = selectedSeats.has(seatKey(tableId, idx)) ? 'selected' : '';
+  const display = name || seatNum || (idx + 1);
+  const esc = (s) => s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  const draggable = name ? 'true' : 'false';
+  return `<div class="seat ${filled} ${sel}" draggable="${draggable}"
+    data-table="${tableId}" data-idx="${idx}"
+    onclick="handleSeatClick(event,'${tableId}',${idx})"
+    ondragstart="dragSeat(event,'${tableId}',${idx})"
+    ondragend="this.classList.remove('dragging-seat')"
+    ondragover="event.preventDefault();this.classList.add('drag-over')"
+    ondragleave="this.classList.remove('drag-over')"
+    ondrop="dropOnSeat(event,'${tableId}',${idx})"
+    title="${name ? esc(name) : 'Seat '+(seatNum||idx+1)}">
+    ${name ? `<button class="remove-btn" onclick="event.stopPropagation();removeSeat('${tableId}',${idx})">&times;</button>` : ''}
+    ${name ? esc(name) : display}
+  </div>`;
+}
+
+function handleSeatClick(e, tableId, idx) {
+  // Ctrl/Cmd+click toggles selection on filled seats
+  if ((e.ctrlKey || e.metaKey) && seatAssignments[tableId][idx]) {
+    e.preventDefault();
+    toggleSelect(tableId, idx);
+    return;
+  }
+  // Normal click opens modal (only if no selection active, or seat is empty)
+  if (selectedSeats.size === 0) {
+    openSeatModal(tableId, idx);
+  } else {
+    // If clicking an empty seat while we have selections, move group there
+    if (!seatAssignments[tableId][idx]) {
+      moveGroupToSeat(tableId, idx);
+    } else {
+      openSeatModal(tableId, idx);
+    }
+  }
+}
+
+// ===== BUILD VENUE =====
+function renderVenue() {
+  const venue = document.getElementById('venue');
+  venue.innerHTML = '';
+
+  // LEFT ZONE
+  const leftZone = document.createElement('div');
+  leftZone.className = 'left-zone';
+
+  // Tables 1 & 2 (joined horizontal banquet)
+  leftZone.appendChild(buildBanquetRow(['1','2'], 4));
+
+  // Head Table (vertical)
+  leftZone.appendChild(buildHeadTable());
+
+  // Tables 3 & 4 (joined horizontal banquet)
+  leftZone.appendChild(buildBanquetRow(['3','4'], 4));
+
+  venue.appendChild(leftZone);
+
+  // RIGHT ZONE
+  const rightZone = document.createElement('div');
+  rightZone.className = 'right-zone';
+
+  // Row 1: Tables 5-9 (each 4 per side)
+  rightZone.appendChild(buildBanquetRow(['5','6','7','8','9'], 4));
+
+  // Row 2: Tables 10-14 (each 4/side)
+  rightZone.appendChild(buildBanquetRow(['10','11','12','13','14'], 4));
+
+  // Row 3: Tables 15-19 (each 4 per side)
+  rightZone.appendChild(buildBanquetRow(['15','16','17','18','19'], 4));
+
+  venue.appendChild(rightZone);
+  updateStats();
+}
+
+function buildBanquetRow(tableIds, defaultPerSide, overrides) {
+  overrides = overrides || {};
+  const wrapper = document.createElement('div');
+  wrapper.className = 'banquet-row';
+
+  const topRow = document.createElement('div');
+  topRow.className = 'row-seats';
+  topRow.style.marginBottom = '2px';
+
+  const surfaceRow = document.createElement('div');
+  surfaceRow.className = 'table-surface-row';
+
+  const bottomRow = document.createElement('div');
+  bottomRow.className = 'row-seats';
+  bottomRow.style.marginTop = '2px';
+
+  tableIds.forEach((tid, tIdx) => {
+    const perSide = overrides[tid] || defaultPerSide;
+    const t = tables[tid];
+
+    // Top seats for this table segment
+    const topSeg = document.createElement('div');
+    topSeg.className = 'seg-seats';
+    for (let i = 0; i < perSide; i++) {
+      topSeg.innerHTML += seatHTML(tid, i, i + 1);
+    }
+    topRow.appendChild(topSeg);
+
+    // Surface segment — use CSS var for seat width so print can override
+    const seg = document.createElement('div');
+    seg.className = 'table-segment';
+    seg.style.width = `calc(${perSide} * var(--seat-w) + ${perSide - 1} * var(--seat-gap) + 2 * var(--seg-pad))`;
+    seg.innerHTML = `<span class="tnum">${t.label}</span>`;
+    surfaceRow.appendChild(seg);
+
+    // Bottom seats for this table segment
+    const botSeg = document.createElement('div');
+    botSeg.className = 'seg-seats';
+    for (let i = perSide; i < t.seats; i++) {
+      botSeg.innerHTML += seatHTML(tid, i, i + 1);
+    }
+    bottomRow.appendChild(botSeg);
+  });
+
+  wrapper.appendChild(topRow);
+  wrapper.appendChild(surfaceRow);
+  wrapper.appendChild(bottomRow);
+  return wrapper;
+}
+
+// Build the head table (vertical orientation)
+// Left side: 12 seats (continuous), Right side: 4 top + 4 gap + 4 bottom = 8 seats
+function buildHeadTable() {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'head-table-area';
+
+  // Left column: 12 seats (indices 0-11)
+  const leftCol = document.createElement('div');
+  leftCol.className = 'head-col';
+  for (let i = 0; i < 12; i++) {
+    leftCol.innerHTML += seatHTML('head', i, i + 1);
+  }
+  wrapper.appendChild(leftCol);
+
+  // Center surface
+  const surface = document.createElement('div');
+  surface.className = 'head-surface';
+  surface.innerHTML = '<span class="label">Head Table</span>';
+  wrapper.appendChild(surface);
+
+  // Right column: seats 13-16 (top 4), gap of 4, seats 17-20 (bottom 4)
+  const rightCol = document.createElement('div');
+  rightCol.className = 'head-col';
+  for (let i = 12; i < 16; i++) {
+    rightCol.innerHTML += seatHTML('head', i, i + 1);
+  }
+  for (let i = 0; i < 4; i++) {
+    rightCol.innerHTML += '<div class="seat-spacer"></div>';
+  }
+  for (let i = 16; i < 20; i++) {
+    rightCol.innerHTML += seatHTML('head', i, i + 1);
+  }
+  wrapper.appendChild(rightCol);
+
+  return wrapper;
+}
+
+// ===== GUEST LIST =====
+function renderGuestList() {
+  const list = document.getElementById('guestList');
+  const search = document.getElementById('guestSearch').value.toLowerCase();
+  const seated = new Set(Object.values(seatAssignments).flat().filter(Boolean));
+
+  const html = allGuests
+    .filter(g => g.toLowerCase().includes(search))
+    .sort((a, b) => {
+      const as = seated.has(a) || dismissedGuests.has(a);
+      const bs = seated.has(b) || dismissedGuests.has(b);
+      if (as !== bs) return as ? 1 : -1;
+      return a.localeCompare(b);
+    })
+    .map(g => {
+      const isSeat = seated.has(g);
+      const isDismissed = dismissedGuests.has(g);
+      const esc = g.replace(/'/g, "\\'");
+      if (isSeat) {
+        return `<div class="guest-item seated"><span>${g}</span></div>`;
+      }
+      if (isDismissed) {
+        return `<div class="guest-item dismissed"><span>${g}</span>
+          <button class="restore-btn" onclick="restoreGuest('${esc}')">undo</button></div>`;
+      }
+      return `<div class="guest-item" draggable="true"
+        ondragstart="dragGuest(event,'${esc}')"
+        ondragend="this.classList.remove('dragging')">
+        <span>${g}</span>
+        <button class="dismiss-btn" onclick="event.stopPropagation();dismissGuest('${esc}')">dismiss</button>
+      </div>`;
+    }).join('');
+
+  list.innerHTML = html;
+}
+function filterGuests() { renderGuestList(); }
+
+// ===== DRAG & DROP (supports sidebar guests AND seat-to-seat swaps) =====
+let dragSource = null; // {type:'guest',name} or {type:'seat',tableId,idx,name}
+
+function dragGuest(e, name) {
+  dragSource = { type:'guest', name };
+  e.target.classList.add('dragging');
+  e.dataTransfer.setData('text/plain', name);
+}
+function dragSeat(e, tableId, idx) {
+  const name = seatAssignments[tableId][idx];
+  if (!name) return;
+  dragSource = { type:'seat', tableId, idx, name };
+  e.target.classList.add('dragging-seat');
+  e.dataTransfer.setData('text/plain', name);
+}
+function dropOnSeat(e, targetTable, targetIdx) {
+  e.preventDefault();
+  const el = e.target.closest('.seat');
+  if (el) el.classList.remove('drag-over');
+  if (!dragSource) return;
+
+  if (dragSource.type === 'seat') {
+    const srcKey = seatKey(dragSource.tableId, dragSource.idx);
+    if (selectedSeats.has(srcKey) && selectedSeats.size > 1) {
+      moveGroupToSeat(targetTable, targetIdx);
+      dragSource = null;
+      return;
+    }
+    const srcName = dragSource.name;
+    const destName = seatAssignments[targetTable][targetIdx];
+    if (dragSource.tableId === targetTable && dragSource.idx === targetIdx) return;
+    pushUndo();
+    seatAssignments[dragSource.tableId][dragSource.idx] = destName;
+    seatAssignments[targetTable][targetIdx] = srcName;
+  } else {
+    pushUndo();
+    const name = dragSource.name;
+    removeGuestFromAllSeats(name);
+    seatAssignments[targetTable][targetIdx] = name;
+  }
+
+  dragSource = null;
+  clearSelection();
+  renderVenue(); renderGuestList();
+}
+
+// ===== MODAL =====
+function openSeatModal(tableId, idx) {
+  currentSeatRef = { tableId, idx };
+  const modal = document.getElementById('assignModal');
+  const select = document.getElementById('guestSelect');
+  const customInput = document.getElementById('customName');
+  const title = document.getElementById('modalTitle');
+
+  const t = tables[tableId];
+  const label = tableId === 'head' ? 'Head Table' : 'Table ' + t.label;
+  title.textContent = `${label} \u2014 Seat ${idx + 1}`;
+
+  const seated = new Set(Object.values(seatAssignments).flat().filter(Boolean));
+  const current = seatAssignments[tableId][idx];
+
+  let opts = '<option value="">-- Select a guest --</option>';
+  if (current) opts += `<option value="${current}" selected>${current} (current)</option>`;
+  allGuests.filter(g => !seated.has(g)).sort().forEach(g => {
+    opts += `<option value="${g}">${g}</option>`;
+  });
+  select.innerHTML = opts;
+  customInput.value = '';
+  modal.classList.add('active');
+  select.focus();
+}
+function closeModal() {
+  document.getElementById('assignModal').classList.remove('active');
+  currentSeatRef = null;
+}
+function confirmAssign() {
+  if (!currentSeatRef) return;
+  const { tableId, idx } = currentSeatRef;
+  const name = document.getElementById('customName').value.trim() || document.getElementById('guestSelect').value;
+  if (!name) { closeModal(); return; }
+  pushUndo();
+  removeGuestFromAllSeats(name);
+  seatAssignments[tableId][idx] = name;
+  closeModal(); renderVenue(); renderGuestList();
+}
+
+// ===== ACTIONS =====
+function dismissGuest(name) {
+  dismissedGuests.add(name);
+  renderGuestList(); updateStats();
+}
+function restoreGuest(name) {
+  dismissedGuests.delete(name);
+  renderGuestList(); updateStats();
+}
+function removeSeat(tableId, idx) {
+  pushUndo();
+  seatAssignments[tableId][idx] = '';
+  renderVenue(); renderGuestList();
+}
+function removeGuestFromAllSeats(name) {
+  for (const tid in seatAssignments) {
+    const arr = seatAssignments[tid];
+    for (let i = 0; i < arr.length; i++) { if (arr[i] === name) arr[i] = ''; }
+  }
+}
+function clearAll() {
+  if (!confirm('Clear all seat assignments?')) return;
+  pushUndo();
+  for (const tid in seatAssignments) seatAssignments[tid].fill('');
+  renderVenue(); renderGuestList();
+}
+function autoSeat() {
+  pushUndo();
+  const seated = new Set(Object.values(seatAssignments).flat().filter(Boolean));
+  const unseated = allGuests.filter(g => !seated.has(g));
+  let ui = 0;
+  const order = Object.keys(tables);
+  for (const tid of order) {
+    const arr = seatAssignments[tid];
+    for (let i = 0; i < arr.length; i++) {
+      if (!arr[i] && ui < unseated.length) arr[i] = unseated[ui++];
+    }
+  }
+  renderVenue(); renderGuestList();
+}
+
+// ===== SAVE / LOAD / EXPORT =====
+function getSaveData() {
+  return { seats: seatAssignments, dismissed: [...dismissedGuests] };
+}
+// Migrate old save data: old table 15 (6 seats) removed, old 16-20 → new 15-19
+function migrateSaveData(data) {
+  const seats = data.seats || data;
+  // Detect old format: has key '20' (which no longer exists)
+  if (!seats['20']) return data;
+  const migrated = {};
+  for (const tid in seats) {
+    if (!Array.isArray(seats[tid])) continue;
+    const oldNum = parseInt(tid);
+    if (tid === 'head' || isNaN(oldNum) || oldNum <= 14) {
+      migrated[tid] = seats[tid];
+    } else if (oldNum === 15) {
+      // Old table 15 is removed — any guests on it go unseated
+      // (it was empty per user, but just in case)
+      continue;
+    } else if (oldNum >= 16 && oldNum <= 20) {
+      // Remap: old 16→15, 17→16, 18→17, 19→18, 20→19
+      migrated[String(oldNum - 1)] = seats[tid];
+    }
+  }
+  const result = data.seats ? { seats: migrated } : migrated;
+  if (data.dismissed) result.dismissed = data.dismissed;
+  return result;
+}
+
+function loadSaveData(data) {
+  pushUndo();
+  data = migrateSaveData(data);
+  if (data.seats) {
+    for (const tid in data.seats) { if (seatAssignments[tid]) seatAssignments[tid] = data.seats[tid]; }
+  } else {
+    // Backward compat: old format was just seat assignments
+    for (const tid in data) { if (seatAssignments[tid] && Array.isArray(data[tid])) seatAssignments[tid] = data[tid]; }
+  }
+  dismissedGuests.clear();
+  if (data.dismissed) data.dismissed.forEach(g => dismissedGuests.add(g));
+}
+function saveChart() {
+  localStorage.setItem('wedding-seating-bora-jim', JSON.stringify(getSaveData()));
+  alert('Seating chart saved!');
+}
+function loadChart() {
+  const data = localStorage.getItem('wedding-seating-bora-jim');
+  if (!data) { alert('No saved chart found.'); return; }
+  loadSaveData(JSON.parse(data));
+  renderVenue(); renderGuestList();
+}
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(getSaveData(), null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'seating-chart-save.json';
+  a.click();
+}
+function importJSON(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      loadSaveData(JSON.parse(ev.target.result));
+      renderVenue(); renderGuestList();
+      alert('Seating chart loaded from file!');
+    } catch(err) { alert('Error reading file: ' + err.message); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+function exportText() {
+  let text = 'BORA & JIM - SEATING CHART\nMay 9, 2026 - Rancho Las Lomas\n\n';
+  for (const tid in tables) {
+    const label = tid === 'head' ? 'HEAD TABLE' : `TABLE ${tables[tid].label}`;
+    text += `${label}\n`;
+    seatAssignments[tid].forEach((name, i) => {
+      text += `  Seat ${i+1}: ${name || '(empty)'}\n`;
+    });
+    text += '\n';
+  }
+  const blob = new Blob([text], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'seating-chart.txt';
+  a.click();
+}
+
+// ===== GROUP MOVE =====
+function moveGroupToSeat(targetTable, targetIdx) {
+  // Collect selected guests in order
+  const guests = [];
+  selectedSeats.forEach(key => {
+    const [tid, sidx] = key.split(':');
+    const i = parseInt(sidx);
+    const name = seatAssignments[tid][i];
+    if (name) guests.push({ tid, idx: i, name });
+  });
+  if (guests.length === 0) return;
+  pushUndo();
+
+  // Remove selected guests from their current seats
+  guests.forEach(g => { seatAssignments[g.tid][g.idx] = ''; });
+
+  // Place them consecutively starting at target
+  // Walk through the target table's seats from targetIdx
+  const arr = seatAssignments[targetTable];
+  let placed = 0;
+  for (let i = targetIdx; i < arr.length && placed < guests.length; i++) {
+    if (!arr[i]) { arr[i] = guests[placed++].name; }
+  }
+  // If we couldn't place all, put remaining back
+  for (let i = placed; i < guests.length; i++) {
+    seatAssignments[guests[i].tid][guests[i].idx] = guests[i].name;
+  }
+
+  clearSelection();
+  renderVenue(); renderGuestList();
+}
+
+// ===== KEYBOARD =====
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') clearSelection();
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) { e.preventDefault(); redo(); }
+});
+
+function updateStats() {
+  const allSeats = Object.values(seatAssignments).flat();
+  const seated = allSeats.filter(Boolean).length;
+  const accounted = seated + dismissedGuests.size;
+  document.getElementById('totalGuests').textContent = allGuests.length;
+  document.getElementById('seatedCount').textContent = seated + (dismissedGuests.size > 0 ? ` (+${dismissedGuests.size} dismissed)` : '');
+  document.getElementById('unseatedCount').textContent = allGuests.length - accounted;
+  document.getElementById('totalSeats').textContent = allSeats.length;
+  document.getElementById('openSeats').textContent = allSeats.length - seated;
+  // Auto-save to browser + cloud on every change
+  const saveData = JSON.stringify(getSaveData());
+  localStorage.setItem('wedding-seating-bora-jim', saveData);
+  saveToCloud();
+}
+
+// ===== SUPABASE CLOUD SYNC =====
+const SUPABASE_URL = 'https://rmgzaaagsxktynadpzcn.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtZ3phYWFnc3hrdHluYWRwemNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NzU2NjEsImV4cCI6MjA5MDU1MTY2MX0.U0qFtIxGFowh7e1DaegOvNmO0meYyBgGTSz-ukH2wSc';
+
+let sb = null;
+let cloudSaveTimer = null;
+let isLoadingFromCloud = false;
+
+try {
+  if (window.supabase) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) { /* Supabase unavailable — offline mode */ }
+
+function saveToCloud() {
+  if (!sb || isLoadingFromCloud) return;
+  clearTimeout(cloudSaveTimer);
+  cloudSaveTimer = setTimeout(async () => {
+    try {
+      await sb.from('seating_data').update({
+        data: getSaveData(),
+        updated_at: new Date().toISOString()
+      }).eq('id', 'main');
+    } catch (e) { /* silent fail, localStorage is backup */ }
+  }, 500);
+}
+
+async function loadFromCloud() {
+  if (!sb) return false;
+  try {
+    const { data, error } = await sb.from('seating_data').select('data').eq('id', 'main').single();
+    if (error || !data || !data.data) return false;
+    const d = data.data;
+    if (!d.seats || Object.keys(d.seats).length === 0) return false;
+    isLoadingFromCloud = true;
+    loadSaveData(d);
+    isLoadingFromCloud = false;
+    return true;
+  } catch (e) { return false; }
+}
+
+// Real-time sync: when the other person saves, update our view
+if (sb) {
+  sb.channel('seating-sync')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'seating_data' }, (payload) => {
+      if (isLoadingFromCloud) return;
+      const data = payload.new.data;
+      if (!data || !data.seats) return;
+      isLoadingFromCloud = true;
+      for (const tid in data.seats) { if (seatAssignments[tid]) seatAssignments[tid] = data.seats[tid]; }
+      dismissedGuests.clear();
+      if (data.dismissed) data.dismissed.forEach(g => dismissedGuests.add(g));
+      renderVenue(); renderGuestList();
+      isLoadingFromCloud = false;
+    })
+    .subscribe();
+}
+
+// ===== INIT =====
+(async () => {
+  // Try cloud first, fall back to localStorage
+  const cloudLoaded = await loadFromCloud();
+  if (!cloudLoaded) {
+    const saved = localStorage.getItem('wedding-seating-bora-jim');
+    if (saved) {
+      try { loadSaveData(JSON.parse(saved)); } catch(e) {}
+    }
+    // Push localStorage data to cloud so it's shared
+    saveToCloud();
+  }
+  renderVenue();
+  renderGuestList();
+})();
+</script>
+</body>
+</html>
