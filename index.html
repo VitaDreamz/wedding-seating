@@ -440,7 +440,8 @@ function seatHTML(tableId, idx, seatNum) {
   const name = seatAssignments[tableId][idx];
   const filled = name ? 'filled' : '';
   const sel = selectedSeats.has(seatKey(tableId, idx)) ? 'selected' : '';
-  const display = name || seatNum || (idx + 1);
+  const sNum = seatNum || (idx + 1);
+  const display = name ? `${sNum}. ${name}` : sNum;
   const esc = (s) => s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
   const draggable = name ? 'true' : 'false';
   return `<div class="seat ${filled} ${sel}" draggable="${draggable}"
@@ -451,9 +452,9 @@ function seatHTML(tableId, idx, seatNum) {
     ondragover="event.preventDefault();this.classList.add('drag-over')"
     ondragleave="this.classList.remove('drag-over')"
     ondrop="dropOnSeat(event,'${tableId}',${idx})"
-    title="${name ? esc(name) : 'Seat '+(seatNum||idx+1)}">
+    title="${name ? sNum+'. '+esc(name) : 'Seat '+sNum}">
     ${name ? `<button class="remove-btn" onclick="event.stopPropagation();removeSeat('${tableId}',${idx})">&times;</button>` : ''}
-    ${name ? esc(name) : display}
+    ${name ? esc(sNum+'. '+name) : display}
   </div>`;
 }
 
