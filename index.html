@@ -564,17 +564,21 @@ function buildBanquetRow(tableIds, defaultPerSide, overrides) {
   return wrapper;
 }
 
-// Build the head table (vertical orientation)
-// Left side: 12 seats (continuous), Right side: 4 top + 4 gap + 4 bottom = 8 seats
+// Head table seat display numbers: counter-clockwise
+// Left col (idx 0-11) = seats 1-12 (top to bottom)
+// Right col (idx 12-15, top group) = seats 20,19,18,17 (top to bottom visually, but numbered bottom-to-top)
+// Right col (idx 16-19, bottom group) = seats 16,15,14,13
+const HEAD_SEAT_NUM = [1,2,3,4,5,6,7,8,9,10,11,12, 20,19,18,17, 16,15,14,13];
+
 function buildHeadTable() {
   const wrapper = document.createElement('div');
   wrapper.className = 'head-table-area';
 
-  // Left column: 12 seats (indices 0-11)
+  // Left column: 12 seats (indices 0-11) → seats 1-12
   const leftCol = document.createElement('div');
   leftCol.className = 'head-col';
   for (let i = 0; i < 12; i++) {
-    leftCol.innerHTML += seatHTML('head', i, i + 1);
+    leftCol.innerHTML += seatHTML('head', i, HEAD_SEAT_NUM[i]);
   }
   wrapper.appendChild(leftCol);
 
@@ -584,17 +588,17 @@ function buildHeadTable() {
   surface.innerHTML = '<span class="label">Head Table</span>';
   wrapper.appendChild(surface);
 
-  // Right column: seats 13-16 (top 4), gap of 4, seats 17-20 (bottom 4)
+  // Right column: top 4 (idx 12-15) → seats 20,19,18,17; gap; bottom 4 (idx 16-19) → seats 16,15,14,13
   const rightCol = document.createElement('div');
   rightCol.className = 'head-col';
   for (let i = 12; i < 16; i++) {
-    rightCol.innerHTML += seatHTML('head', i, i + 1);
+    rightCol.innerHTML += seatHTML('head', i, HEAD_SEAT_NUM[i]);
   }
   for (let i = 0; i < 4; i++) {
     rightCol.innerHTML += '<div class="seat-spacer"></div>';
   }
   for (let i = 16; i < 20; i++) {
-    rightCol.innerHTML += seatHTML('head', i, i + 1);
+    rightCol.innerHTML += seatHTML('head', i, HEAD_SEAT_NUM[i]);
   }
   wrapper.appendChild(rightCol);
 
@@ -694,7 +698,8 @@ function openSeatModal(tableId, idx) {
 
   const t = tables[tableId];
   const label = tableId === 'head' ? 'Head Table' : 'Table ' + t.label;
-  title.textContent = `${label} \u2014 Seat ${idx + 1}`;
+  const sNum = tableId === 'head' ? HEAD_SEAT_NUM[idx] : idx + 1;
+  title.textContent = `${label} \u2014 Seat ${sNum}`;
 
   const seated = new Set(Object.values(seatAssignments).flat().filter(Boolean));
   const current = seatAssignments[tableId][idx];
@@ -842,7 +847,7 @@ function exportCSV() {
   for (const tid in tables) {
     const label = tid === 'head' ? 'Head Table' : tables[tid].label;
     seatAssignments[tid].forEach((name, i) => {
-      if (name) rows.push([name, label, i + 1]);
+      if (name) rows.push([name, label, tid === 'head' ? HEAD_SEAT_NUM[i] : i + 1]);
     });
   }
   // Sort alphabetically by guest name
@@ -860,7 +865,8 @@ function exportText() {
     const label = tid === 'head' ? 'HEAD TABLE' : `TABLE ${tables[tid].label}`;
     text += `${label}\n`;
     seatAssignments[tid].forEach((name, i) => {
-      text += `  Seat ${i+1}: ${name || '(empty)'}\n`;
+      const sNum = tid === 'head' ? HEAD_SEAT_NUM[i] : i + 1;
+      text += `  Seat ${sNum}: ${name || '(empty)'}\n`;
     });
     text += '\n';
   }
