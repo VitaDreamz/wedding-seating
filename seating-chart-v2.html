@@ -253,6 +253,77 @@
   .data-table .dismiss-btn:hover { background:var(--danger); color:#fff; border-color:var(--danger); }
   .data-filter { padding:0.3rem 0.5rem; border:1px solid var(--border); border-radius:4px; font-size:0.8rem; width:180px; }
 
+  /* ===== REVIEW MODAL ===== */
+  .review-overlay { display:none; position:fixed; inset:0; z-index:1300; background:rgba(0,0,0,0.55); }
+  .review-overlay.active { display:flex; align-items:center; justify-content:center; }
+  .review-panel {
+    background:var(--card); border-radius:12px; width:min(700px,92vw); max-height:85vh;
+    box-shadow:0 8px 30px rgba(0,0,0,0.25); display:flex; flex-direction:column; overflow:hidden;
+  }
+  .review-header {
+    display:flex; align-items:center; justify-content:space-between; padding:0.8rem 1rem;
+    border-bottom:1px solid var(--border); flex-shrink:0;
+  }
+  .review-header h3 { color:var(--accent-dark); font-size:1rem; margin:0; }
+  .review-header .review-stats { font-size:0.78rem; color:var(--text-light); }
+  .review-header .close-btn { font-size:1.2rem; padding:0.2rem 0.6rem; border:1px solid var(--border); border-radius:6px; background:var(--card); cursor:pointer; }
+  .review-header .close-btn:hover { background:var(--danger); color:#fff; border-color:var(--danger); }
+  .review-list { flex:1; overflow-y:auto; padding:0.5rem; }
+  .review-row {
+    display:flex; align-items:flex-start; gap:0.6rem; padding:0.6rem 0.5rem;
+    border-bottom:1px solid var(--border); flex-wrap:wrap;
+  }
+  .review-row.resolved { opacity:0.35; }
+  .review-csv { flex:1; min-width:140px; }
+  .review-csv .csv-name { font-weight:600; font-size:0.88rem; }
+  .review-csv .csv-data { font-size:0.72rem; color:var(--text-light); margin-top:2px; }
+  .review-match { flex:1; min-width:140px; text-align:right; }
+  .review-match .match-name { font-size:0.88rem; }
+  .review-match .match-pct {
+    display:inline-block; font-size:0.65rem; padding:1px 6px; border-radius:3px;
+    margin-left:4px; font-weight:600;
+  }
+  .match-pct.high { background:#c8e6c9; color:#2e7d32; }
+  .match-pct.medium { background:#fff9c4; color:#f57f17; }
+  .match-pct.low { background:#ffcdd2; color:#c62828; }
+  .review-actions { display:flex; gap:4px; flex-shrink:0; align-items:center; flex-wrap:wrap; }
+  .review-actions button {
+    padding:4px 10px; border:1px solid var(--border); border-radius:5px;
+    font-size:0.75rem; cursor:pointer; background:var(--card); white-space:nowrap;
+  }
+  .review-actions button:hover { background:var(--accent-light); color:#fff; border-color:var(--accent-light); }
+  .review-actions .btn-match { border-color:var(--accent); color:var(--accent); }
+  .review-actions .btn-match:hover { background:var(--accent); color:#fff; }
+  .review-actions .btn-add { border-color:#4caf50; color:#4caf50; }
+  .review-actions .btn-add:hover { background:#4caf50; color:#fff; }
+  .review-actions .btn-skip { color:var(--text-light); }
+  .review-search {
+    display:flex; gap:4px; margin-top:4px; width:100%; position:relative;
+  }
+  .review-search input {
+    flex:1; padding:4px 8px; border:1px solid var(--border); border-radius:5px;
+    font-size:0.8rem; outline:none;
+  }
+  .review-search input:focus { border-color:var(--accent); }
+  .review-search .search-results {
+    position:absolute; top:100%; left:0; right:60px; background:var(--card); border:1px solid var(--border);
+    border-radius:6px; max-height:150px; overflow-y:auto; z-index:10; box-shadow:var(--shadow);
+  }
+  .review-search .search-results div {
+    padding:5px 8px; font-size:0.8rem; cursor:pointer;
+  }
+  .review-search .search-results div:hover { background:var(--seat-hover); }
+  .review-footer {
+    display:flex; justify-content:space-between; align-items:center; padding:0.6rem 1rem;
+    border-top:1px solid var(--border); flex-shrink:0; font-size:0.8rem;
+  }
+  .review-footer .status { color:var(--text-light); }
+  .review-footer button {
+    padding:0.4rem 1rem; border:1px solid var(--accent); border-radius:6px;
+    background:var(--accent); color:#fff; cursor:pointer; font-size:0.82rem;
+  }
+  .review-footer button:hover { background:var(--accent-dark); }
+
   /* ===== MODAL ===== */
   .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center; }
   .modal-overlay.active { display:flex; }
@@ -432,6 +503,21 @@
 <div class="selection-info" id="selectionInfo">
   <span id="selectionCount">0 selected</span>
   <button onclick="clearSelection()">Clear (Esc)</button>
+</div>
+
+<div class="review-overlay" id="reviewOverlay">
+  <div class="review-panel">
+    <div class="review-header">
+      <h3>Review Unmatched Guests</h3>
+      <span class="review-stats" id="reviewStats"></span>
+      <button class="close-btn" onclick="closeReviewModal()" title="Close">&times;</button>
+    </div>
+    <div class="review-list" id="reviewList"></div>
+    <div class="review-footer">
+      <span class="status" id="reviewStatus"></span>
+      <button onclick="closeReviewModal()">Done</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal-overlay" id="assignModal">
@@ -1911,28 +1997,28 @@ function importRileyGray() {
 
         // Fuzzy match attempt — find the closest existing guest
         const fuzzyResult = fuzzyMatchGuest(name, seatedIndex, allGuests);
-        // Find the seat location of the closest match (for positioning in data viewer)
         let closestTid = null, closestIdx = null;
-        if (fuzzyResult) {
-          const fl = fuzzyResult.toLowerCase();
+        const closestName = fuzzyResult ? fuzzyResult.name : null;
+        const similarity = fuzzyResult ? fuzzyResult.similarity : 0;
+        if (closestName) {
+          const fl = closestName.toLowerCase();
           if (seatedIndex[fl]) { closestTid = seatedIndex[fl].tid; closestIdx = seatedIndex[fl].idx; }
         }
-        // For plus-ones with no fuzzy match, link to primary guest
-        if (!fuzzyResult && isPlusOne && lastPrimaryName) {
+        if (!closestName && isPlusOne && lastPrimaryName) {
           const pl = lastPrimaryName.toLowerCase();
           if (seatedIndex[pl]) { closestTid = seatedIndex[pl].tid; closestIdx = seatedIndex[pl].idx; }
         }
 
-        // Store as pending match for review in Guest Data viewer
         pendingMatches.push({
           csvName: name,
           meal: meal || '',
           dietary: dietary || '',
           notes: notes || '',
-          closestMatch: fuzzyResult || (isPlusOne ? lastPrimaryName : null),
+          closestMatch: closestName || (isPlusOne ? lastPrimaryName : null),
           closestTid,
           closestIdx,
-          primaryGuest: isPlusOne ? lastPrimaryName : null
+          primaryGuest: isPlusOne ? lastPrimaryName : null,
+          similarity: closestName ? similarity : 0
         });
         added++;
       }
@@ -1941,14 +2027,11 @@ function importRileyGray() {
       renderGuestList();
       updateStats();
 
-      let summary = `Riley & Gray Import Complete\n\n`;
-      summary += `${updated} guest(s) updated in place\n`;
-      summary += `${skipped} declined/skipped\n`;
       if (pendingMatches.length > 0) {
-        summary += `\n${pendingMatches.length} unmatched guest(s) need review.\n`;
-        summary += `Open "Guest Data" to review and merge them.`;
+        openReviewModal(updated, skipped);
+      } else {
+        alert(`Riley & Gray Import Complete\n\n${updated} guest(s) updated in place\n${skipped} declined/skipped\nAll guests matched!`);
       }
-      alert(summary);
     };
     reader.readAsText(file);
   };
@@ -1969,6 +2052,7 @@ function fuzzyMatchGuest(name, seatedIndex, guestList) {
   const nameParts = nameLower.split(/\s+/);
   let bestMatch = null;
   let bestScore = 0;
+  let bestSimilarity = 0;
 
   const candidates = [...Object.keys(seatedIndex), ...guestList.map(g => g.toLowerCase())];
   const seen = new Set();
@@ -1978,7 +2062,6 @@ function fuzzyMatchGuest(name, seatedIndex, guestList) {
     seen.add(candidate);
     const candParts = candidate.split(/\s+/);
 
-    // Score: shared parts
     let score = 0;
     for (const part of nameParts) {
       if (part.length < 2) continue;
@@ -1988,7 +2071,6 @@ function fuzzyMatchGuest(name, seatedIndex, guestList) {
       }
     }
 
-    // Levenshtein on full name for close matches
     const dist = levenshtein(nameLower, candidate);
     const maxLen = Math.max(nameLower.length, candidate.length);
     const similarity = 1 - dist / maxLen;
@@ -1997,14 +2079,13 @@ function fuzzyMatchGuest(name, seatedIndex, guestList) {
     if (score > bestScore) {
       bestScore = score;
       bestMatch = candidate;
+      bestSimilarity = similarity;
     }
   }
 
-  // Only report if reasonably close but not exact
   if (bestScore >= 3 && bestMatch) {
-    // Find original casing
     const original = guestList.find(g => g.toLowerCase() === bestMatch) || bestMatch;
-    return original;
+    return { name: original, similarity: Math.round(bestSimilarity * 100) };
   }
   return null;
 }
@@ -2399,6 +2480,171 @@ function toggleDrawer() {
   const sidebar = document.querySelector('.guest-sidebar');
   sidebar.classList.toggle('drawer-open');
   document.querySelector('.controls').classList.remove('toolbar-open');
+}
+
+// ===== FUZZY MATCH REVIEW MODAL =====
+let reviewImportStats = { updated: 0, skipped: 0 };
+
+function openReviewModal(updated, skipped) {
+  reviewImportStats = { updated, skipped };
+  document.getElementById('reviewOverlay').classList.add('active');
+  renderReviewRows();
+}
+
+function closeReviewModal() {
+  const unreviewed = pendingMatches.length;
+  if (unreviewed > 0) {
+    if (!confirm(`${unreviewed} guest(s) still unreviewed. They will be skipped. Continue?`)) return;
+    pendingMatches = [];
+  }
+  document.getElementById('reviewOverlay').classList.remove('active');
+  renderVenue(); renderGuestList(); updateStats();
+}
+
+function renderReviewRows() {
+  const list = document.getElementById('reviewList');
+  const total = pendingMatches.length;
+  const resolved = list.querySelectorAll('.resolved').length;
+
+  document.getElementById('reviewStats').textContent =
+    `${reviewImportStats.updated} auto-matched · ${reviewImportStats.skipped} declined`;
+  document.getElementById('reviewStatus').textContent =
+    `${pendingMatches.length} remaining`;
+
+  // Build all seated + unseated guests for search
+  const allExisting = [];
+  for (const tid in seatAssignments) {
+    const label = tid === 'head' ? 'Head Table' : 'Table ' + (tables[tid]?.label || tid);
+    seatAssignments[tid].forEach((seat, idx) => {
+      if (seat.name) allExisting.push({ name: seat.name, tid, idx, where: label });
+    });
+  }
+  allGuests.forEach(g => {
+    if (!allExisting.find(e => e.name.toLowerCase() === g.toLowerCase())) {
+      allExisting.push({ name: g, tid: null, idx: null, where: 'Unseated' });
+    }
+  });
+  allExisting.sort((a, b) => a.name.localeCompare(b.name));
+
+  list.innerHTML = pendingMatches.map((pm, i) => {
+    const pctClass = pm.similarity >= 80 ? 'high' : pm.similarity >= 50 ? 'medium' : 'low';
+    const matchInfo = pm.closestMatch
+      ? `<span class="match-name">${esc(pm.closestMatch)}</span><span class="match-pct ${pctClass}">${pm.similarity}%</span>`
+      : (pm.primaryGuest ? `<span class="match-name">+1 of ${esc(pm.primaryGuest)}</span>` : '<span style="color:var(--text-light)">No suggestion</span>');
+
+    const csvData = [pm.meal, pm.dietary, pm.notes].filter(Boolean).join(' · ');
+    return `<div class="review-row" id="reviewRow${i}">
+      <div class="review-csv">
+        <div class="csv-name">${esc(pm.csvName)}</div>
+        ${csvData ? `<div class="csv-data">${esc(csvData)}</div>` : ''}
+      </div>
+      <div class="review-match">${matchInfo}</div>
+      <div class="review-actions" id="reviewActions${i}">
+        ${pm.closestMatch ? `<button class="btn-match" onclick="reviewMatch(${i})">Match</button>` : ''}
+        <button onclick="reviewSearch(${i})">Search</button>
+        <button class="btn-add" onclick="reviewAddNew(${i})">Add as New</button>
+        <button class="btn-skip" onclick="reviewSkip(${i})">Skip</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function reviewMatch(idx) {
+  const pm = pendingMatches[idx];
+  if (!pm || !pm.closestMatch) return;
+  pushUndo();
+
+  // Apply CSV data onto the matched guest
+  if (pm.closestTid != null && pm.closestIdx != null) {
+    const seat = seatAssignments[pm.closestTid]?.[pm.closestIdx];
+    if (seat) {
+      if (pm.meal) seat.meal = pm.meal;
+      if (pm.dietary) seat.dietary = pm.dietary;
+      if (pm.notes) seat.notes = (seat.notes ? seat.notes + '; ' : '') + pm.notes;
+      seat.rsvp = 'confirmed';
+    }
+  }
+  pendingMatches.splice(idx, 1);
+  saveToCloud();
+  renderReviewRows();
+}
+
+function reviewSearch(idx) {
+  const actions = document.getElementById('reviewActions' + idx);
+  // Check if search is already open
+  if (actions.querySelector('.review-search')) return;
+
+  const searchDiv = document.createElement('div');
+  searchDiv.className = 'review-search';
+  searchDiv.innerHTML = `<input type="text" placeholder="Search guests..." oninput="reviewSearchFilter(${idx}, this.value)">
+    <div class="search-results" style="display:none" id="searchResults${idx}"></div>
+    <button onclick="this.closest('.review-search').remove()" style="padding:4px 8px;border:1px solid var(--border);border-radius:5px;font-size:0.75rem;cursor:pointer;background:var(--card)">Cancel</button>`;
+  actions.appendChild(searchDiv);
+  searchDiv.querySelector('input').focus();
+}
+
+function reviewSearchFilter(idx, query) {
+  const results = document.getElementById('searchResults' + idx);
+  if (!query || query.length < 2) { results.style.display = 'none'; return; }
+  const q = query.toLowerCase();
+
+  // Search all seated + unseated guests
+  const matches = [];
+  for (const tid in seatAssignments) {
+    const label = tid === 'head' ? 'Head Table' : 'Table ' + (tables[tid]?.label || tid);
+    seatAssignments[tid].forEach((seat, si) => {
+      if (seat.name && seat.name.toLowerCase().includes(q)) {
+        matches.push({ name: seat.name, tid, idx: si, where: label });
+      }
+    });
+  }
+  allGuests.forEach(g => {
+    if (g.toLowerCase().includes(q) && !matches.find(m => m.name.toLowerCase() === g.toLowerCase())) {
+      matches.push({ name: g, tid: null, idx: null, where: 'Unseated' });
+    }
+  });
+
+  if (matches.length === 0) {
+    results.innerHTML = '<div style="color:var(--text-light);padding:6px 8px">No matches</div>';
+  } else {
+    results.innerHTML = matches.slice(0, 10).map(m =>
+      `<div data-tid="${m.tid||''}" data-si="${m.idx!=null?m.idx:''}" data-nm="${esc(m.name)}" onclick="reviewConfirmSearch(${idx},this.dataset.tid,this.dataset.si)">${esc(m.name)} <span style="color:var(--text-light);font-size:0.7rem">${m.where}</span></div>`
+    ).join('');
+  }
+  results.style.display = 'block';
+}
+
+function reviewConfirmSearch(idx, tid, seatIdx) {
+  const pm = pendingMatches[idx];
+  if (!pm) return;
+  pushUndo();
+
+  if (tid && tid !== '' && tid !== 'null' && seatIdx !== '' && seatIdx != null) {
+    const seat = seatAssignments[tid]?.[parseInt(seatIdx)];
+    if (seat) {
+      if (pm.meal) seat.meal = pm.meal;
+      if (pm.dietary) seat.dietary = pm.dietary;
+      if (pm.notes) seat.notes = (seat.notes ? seat.notes + '; ' : '') + pm.notes;
+      seat.rsvp = 'confirmed';
+    }
+  }
+  pendingMatches.splice(idx, 1);
+  saveToCloud();
+  renderReviewRows();
+}
+
+function reviewAddNew(idx) {
+  const pm = pendingMatches[idx];
+  if (!pm) return;
+  allGuests.push(pm.csvName);
+  pendingMatches.splice(idx, 1);
+  renderGuestList();
+  renderReviewRows();
+}
+
+function reviewSkip(idx) {
+  pendingMatches.splice(idx, 1);
+  renderReviewRows();
 }
 
 // ===== GUEST DATA VIEWER =====
