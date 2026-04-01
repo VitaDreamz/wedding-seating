@@ -531,6 +531,7 @@
       <div class="menu-sep"></div>
       <div class="menu-option" onclick="addTable();closeAllMenus()">Add Table</div>
       <div class="menu-option" onclick="autoSeat();closeAllMenus()">Auto-Fill Empty Seats</div>
+      <div class="menu-option" onclick="openAliasManager();closeAllMenus()">Manage Name Aliases</div>
       <div class="menu-sep"></div>
       <div class="menu-option danger" onclick="clearAll();closeAllMenus()">Clear All Seats</div>
     </div>
@@ -605,6 +606,19 @@
       <span class="status" id="reviewStatus"></span>
       <button onclick="closeReviewModal()">Done</button>
     </div>
+  </div>
+</div>
+
+<div class="review-overlay" id="aliasOverlay">
+  <div class="review-panel">
+    <div class="review-header">
+      <h3>Name Aliases</h3>
+      <button class="close-btn" onclick="closeAliasManager()" title="Close">&times;</button>
+    </div>
+    <p style="padding:0.4rem 1rem 0;font-size:0.78rem;color:var(--text-light)">
+      When a CSV name matches an alias, it auto-resolves without review. Aliases are created when you confirm fuzzy matches during import.
+    </p>
+    <div class="review-list" id="aliasBody" style="padding:0.5rem"></div>
   </div>
 </div>
 
@@ -838,6 +852,7 @@ const dismissedGuests = new Set();
 
 // Pending import matches: fuzzy matches & plus-ones awaiting merge
 let pendingMatches = [];
+let nameAliases = {};
 // Each: { csvName, meal, dietary, notes, closestMatch, closestTid, closestIdx, primaryGuest }
 
 // ===== UNDO / REDO =====
@@ -1796,7 +1811,7 @@ function autoSeat() {
 const STORAGE_KEY = 'wedding-seating-bora-jim';
 
 function getSaveData() {
-  return { seats: seatAssignments, dismissed: [...dismissedGuests], layout: tableLayout, groups: tableGroups, tables: JSON.parse(JSON.stringify(tables)) };
+  return { seats: seatAssignments, dismissed: [...dismissedGuests], layout: tableLayout, groups: tableGroups, tables: JSON.parse(JSON.stringify(tables)), aliases: {...nameAliases} };
 }
 
 function migrateSaveData(data) {
@@ -1868,6 +1883,7 @@ function loadSaveData(data, skipUndo) {
   }
   if (data.groups) tableGroups = JSON.parse(JSON.stringify(data.groups));
   else tableGroups = [];
+  nameAliases = data.aliases ? {...data.aliases} : {};
 }
 
 function saveChart() {
@@ -2059,7 +2075,7 @@ function importRileyGray() {
 
       pushUndo();
 
-      let updated = 0, added = 0, skipped = 0;
+      let updated = 0, added = 0, skipped = 0, aliasResolved = 0;
       let lastPrimaryName = null; // track the primary guest for plus-one rows
 
       for (let r = 1; r < lines.length; r++) {
@@ -2111,6 +2127,24 @@ function importRileyGray() {
           continue;
         }
 
+        // Check name aliases from previous import resolutions
+        const aliasTarget = nameAliases[nameLower];
+        if (aliasTarget) {
+          const aliasLower = aliasTarget.toLowerCase();
+          const seated = seatedIndex[aliasLower];
+          if (seated) {
+            const seat = seatAssignments[seated.tid][seated.idx];
+            if (meal) seat.meal = meal;
+            if (dietary) seat.dietary = dietary;
+            if (notes) seat.notes = (seat.notes ? seat.notes + '; ' : '') + notes;
+            seat.rsvp = 'confirmed';
+            aliasResolved++;
+            continue;
+          }
+          if (allGuestsLower.has(aliasLower)) { aliasResolved++; continue; }
+          // Alias target no longer exists — fall through to fuzzy match
+        }
+
         // Fuzzy match attempt — find the closest existing guest
         const fuzzyResult = fuzzyMatchGuest(name, seatedIndex, allGuests);
         let closestTid = null, closestIdx = null;
@@ -2144,9 +2178,9 @@ function importRileyGray() {
       updateStats();
 
       if (pendingMatches.length > 0) {
-        openReviewModal(updated, skipped);
+        openReviewModal(updated, skipped, aliasResolved);
       } else {
-        alert(`Riley & Gray Import Complete\n\n${updated} guest(s) updated in place\n${skipped} declined/skipped\nAll guests matched!`);
+        alert(`Riley & Gray Import Complete\n\n${updated} updated in place\n${aliasResolved} auto-resolved via aliases\n${skipped} declined/skipped\nAll guests matched!`);
       }
     };
     reader.readAsText(file);
@@ -2585,6 +2619,7 @@ if (sb) {
           : JSON.parse(JSON.stringify(data.layout));
       }
       if (data.groups) tableGroups = JSON.parse(JSON.stringify(data.groups));
+      if (data.aliases) nameAliases = {...data.aliases};
       renderVenue(); renderGuestList();
       isLoadingFromCloud = false;
     })
@@ -2693,8 +2728,8 @@ function toggleDrawer() {
 // ===== FUZZY MATCH REVIEW MODAL =====
 let reviewImportStats = { updated: 0, skipped: 0 };
 
-function openReviewModal(updated, skipped) {
-  reviewImportStats = { updated, skipped };
+function openReviewModal(updated, skipped, aliasResolved) {
+  reviewImportStats = { updated, skipped, aliasResolved: aliasResolved || 0 };
   document.getElementById('reviewOverlay').classList.add('active');
   renderReviewRows();
 }
@@ -2714,8 +2749,9 @@ function renderReviewRows() {
   const total = pendingMatches.length;
   const resolved = list.querySelectorAll('.resolved').length;
 
+  const aliasPart = reviewImportStats.aliasResolved ? ` · ${reviewImportStats.aliasResolved} alias-resolved` : '';
   document.getElementById('reviewStats').textContent =
-    `${reviewImportStats.updated} auto-matched · ${reviewImportStats.skipped} declined`;
+    `${reviewImportStats.updated} auto-matched${aliasPart} · ${reviewImportStats.skipped} declined`;
   document.getElementById('reviewStatus').textContent =
     `${pendingMatches.length} remaining`;
 
@@ -2772,6 +2808,7 @@ function reviewMatch(idx) {
       seat.rsvp = 'confirmed';
     }
   }
+  nameAliases[pm.csvName.toLowerCase().trim()] = pm.closestMatch;
   pendingMatches.splice(idx, 1);
   saveToCloud();
   renderReviewRows();
@@ -2827,15 +2864,18 @@ function reviewConfirmSearch(idx, tid, seatIdx) {
   if (!pm) return;
   pushUndo();
 
+  let canonicalName = null;
   if (tid && tid !== '' && tid !== 'null' && seatIdx !== '' && seatIdx != null) {
     const seat = seatAssignments[tid]?.[parseInt(seatIdx)];
     if (seat) {
+      canonicalName = seat.name;
       if (pm.meal) seat.meal = pm.meal;
       if (pm.dietary) seat.dietary = pm.dietary;
       if (pm.notes) seat.notes = (seat.notes ? seat.notes + '; ' : '') + pm.notes;
       seat.rsvp = 'confirmed';
     }
   }
+  if (canonicalName) nameAliases[pm.csvName.toLowerCase().trim()] = canonicalName;
   pendingMatches.splice(idx, 1);
   saveToCloud();
   renderReviewRows();
@@ -2853,6 +2893,39 @@ function reviewAddNew(idx) {
 function reviewSkip(idx) {
   pendingMatches.splice(idx, 1);
   renderReviewRows();
+}
+
+// ===== ALIAS MANAGER =====
+function openAliasManager() {
+  document.getElementById('aliasOverlay').classList.add('active');
+  renderAliasRows();
+}
+
+function closeAliasManager() {
+  document.getElementById('aliasOverlay').classList.remove('active');
+}
+
+function renderAliasRows() {
+  const entries = Object.entries(nameAliases).sort((a, b) => a[0].localeCompare(b[0]));
+  const body = document.getElementById('aliasBody');
+  if (entries.length === 0) {
+    body.innerHTML = '<p style="padding:1rem;text-align:center;color:var(--text-light)">No aliases yet. Aliases are created when you confirm fuzzy matches during CSV import.</p>';
+    return;
+  }
+  body.innerHTML = entries.map(([csv, canonical]) => `
+    <div class="review-row" style="justify-content:space-between;align-items:center">
+      <span style="flex:1;font-weight:500">${esc(csv)}</span>
+      <span style="margin:0 0.5rem;color:var(--text-light)">\u2192</span>
+      <span style="flex:1">${esc(canonical)}</span>
+      <button onclick="deleteAlias('${csv.replace(/'/g, "\\'")}')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:1.1rem;padding:4px 8px" title="Remove alias">&times;</button>
+    </div>
+  `).join('');
+}
+
+function deleteAlias(csvName) {
+  delete nameAliases[csvName];
+  saveToCloud();
+  renderAliasRows();
 }
 
 // ===== GUEST DATA VIEWER =====
