@@ -1992,7 +1992,7 @@ function importJSON(e) {
   e.target.value = '';
 }
 function exportCSV() {
-  const headers = ['First Name','Last Name','Table','Seat','Meal','Dietary','RSVP','Side','Age Group','Accessibility','Group','Conflicts','Affinities','Notes'];
+  const headers = ['First Name','Last Name','Table','Seat','Meal','Dietary','RSVP','Side','Age Group','Accessibility','Group','Conflicts','Affinities','Notes','Full Name'];
   const rows = [headers];
   for (const tid in tables) {
     const label = tid === 'head' ? 'Head Table' : tables[tid].label;
@@ -2005,7 +2005,8 @@ function exportCSV() {
         first, last, label, tid === 'head' ? HEAD_SEAT_NUM[i] : i + 1,
         seat.meal || '', seat.dietary || '', seat.rsvp || '', seat.side || '',
         seat.ageGroup || '', seat.accessibility || '', seat.group || '',
-        (seat.conflicts || []).join('; '), (seat.affinities || []).join('; '), seat.notes || ''
+        (seat.conflicts || []).join('; '), (seat.affinities || []).join('; '), seat.notes || '',
+        seat.name
       ]);
     });
   }
