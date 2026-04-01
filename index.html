@@ -131,10 +131,10 @@
   body.presentation header,
   body.presentation .stats-bar,
   body.presentation .menu-bar,
+  body.presentation .mobile-bar,
   body.presentation .guest-sidebar,
   body.presentation .selection-info,
-  body.presentation .zoom-controls,
-  body.presentation .bottom-tabs { display:none !important; }
+  body.presentation .zoom-controls { display:none !important; }
   body.presentation .main-layout { flex:1; }
   body.presentation .floor-plan { padding:0.5rem; }
 
@@ -472,95 +472,30 @@
     .seat-spacer { width:80px; height:28px; }
   }
   @media (max-width:900px) {
-    header { padding:0 1rem; height:52px; display:flex; align-items:center; justify-content:flex-start; background:var(--card); border-bottom:1px solid var(--border-light); }
-    header h1, header p, header .hero-search { display:none; }
-    .app-brand { margin-bottom:0; font-size:0.75rem; letter-spacing:3px; }
-    .stats-bar { display:none; }
-    .main-layout { flex-direction:column; padding-bottom:56px; }
-    .guest-sidebar { width:100%; min-width:unset; border-right:none; border-bottom:1px solid var(--border); max-height:0; overflow:hidden; }
-    .guest-sidebar.tab-active { max-height:none; overflow-y:auto; position:fixed; inset:52px 0 56px 0; z-index:700; width:100%; border:none; background:var(--card); }
+    .main-layout { flex-direction:column; }
+    .guest-sidebar { width:100%; min-width:unset; border-right:none; border-bottom:1px solid var(--border); max-height:0; overflow:hidden; transition:max-height 0.3s ease; }
+    .guest-sidebar.drawer-open { max-height:50vh; overflow-y:auto; }
     .floor-plan { overflow:auto; flex:1; }
     .menu-bar { overflow-x:auto; }
-    .bottom-tabs { display:flex; }
-    .menu-bar-tabs { display:none; }
+    .hero-search { width:90vw; margin-top:0.5rem; }
+    .hero-search-input { height:44px; font-size:0.95rem; }
+    .mobile-bar { display:flex !important; }
   }
   @media (min-width:901px) {
     .guest-sidebar { max-height:none !important; overflow-y:auto !important; }
   }
 
-  /* ===== BOTTOM TAB BAR ===== */
-  .bottom-tabs {
-    display:none; position:fixed; bottom:0; left:0; right:0; z-index:800;
-    height:56px; background:var(--card); border-top:1px solid var(--border);
-    box-shadow:0 -2px 8px rgba(44,44,44,0.06);
-    padding-bottom:env(safe-area-inset-bottom);
+  /* ===== MOBILE BAR ===== */
+  .mobile-bar {
+    display:none; justify-content:space-between; align-items:center; padding:0.5rem 1rem;
+    background:var(--card); border-bottom:1px solid var(--border); gap:0.5rem;
   }
-  .tab-btn {
-    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:2px; border:none; background:none; cursor:pointer;
-    color:var(--text-muted); font-family:var(--font-ui); font-size:0.65rem;
-    font-weight:500; letter-spacing:0.3px; transition:color 0.15s ease;
-    -webkit-tap-highlight-color:transparent;
+  .mobile-bar button {
+    min-height:48px; min-width:48px; padding:0.5rem 1rem; border:1px solid var(--border);
+    border-radius:8px; background:var(--card); color:var(--text); cursor:pointer; font-size:0.88rem; font-family:var(--font-ui); font-weight:500;
+    transition:all 0.12s ease;
   }
-  .tab-btn .tab-icon { font-size:1.3rem; line-height:1; }
-  .tab-btn .tab-label { line-height:1; }
-  .tab-btn.active { color:var(--accent-dark); }
-  .tab-btn:active { opacity:0.7; }
-
-  /* ===== SEARCH PANEL (slide-up) ===== */
-  .search-panel {
-    display:none; position:fixed; bottom:56px; left:0; right:0;
-    height:45vh; background:var(--card); border-top-left-radius:16px;
-    border-top-right-radius:16px; box-shadow:0 -4px 20px rgba(44,44,44,0.12);
-    z-index:810; flex-direction:column; overflow:hidden;
-    transform:translateY(100%); transition:transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .search-panel.open { display:flex; transform:translateY(0); }
-  .search-panel-header { padding:1rem 1rem 0.5rem; flex-shrink:0; }
-  .search-panel-header .hero-search { margin-top:0; display:inline-flex; width:100%; }
-  .search-panel-results { flex:1; overflow-y:auto; padding:0 0.5rem 0.5rem; }
-  .search-result-item {
-    display:flex; align-items:center; justify-content:space-between;
-    padding:12px 14px; border-radius:8px; cursor:pointer;
-    transition:background 0.12s ease; font-size:0.9rem;
-  }
-  .search-result-item:active { background:var(--accent-subtle); }
-  .search-result-item .result-name { font-weight:500; }
-  .search-result-item .result-info { font-size:0.78rem; color:var(--text-light); margin-left:0.5rem; }
-  .search-result-item .result-status {
-    font-size:0.68rem; padding:2px 8px; border-radius:9999px; font-weight:600; flex-shrink:0;
-  }
-  .result-status.seated { background:var(--seat-filled); color:var(--accent-dark); }
-  .result-status.unseated { background:var(--bg-sunken); color:var(--text-muted); }
-  .search-panel-overlay {
-    display:none; position:fixed; inset:0; z-index:805;
-    background:rgba(44,44,44,0.25);
-  }
-  .search-panel-overlay.open { display:block; }
-
-  /* ===== AISLES PLACEHOLDER ===== */
-  .aisles-placeholder {
-    display:none; flex:1; height:100%; align-items:center; justify-content:center;
-  }
-  .aisles-placeholder.active { display:flex; }
-  .placeholder-content { text-align:center; color:var(--text-muted); }
-  .placeholder-content h3 {
-    font-family:var(--font-display); font-weight:400; font-size:1.3rem;
-    color:var(--text-light); margin-top:0.8rem;
-  }
-  .placeholder-content p { font-size:0.85rem; margin-top:0.3rem; }
-
-  /* ===== DESKTOP TAB BUTTONS (menu bar) ===== */
-  .menu-bar-tabs {
-    display:flex; margin-left:auto; gap:2px;
-  }
-  .menu-bar-tabs .tab-trigger {
-    padding:8px 14px; font-size:0.85rem; font-weight:500; color:var(--text-light);
-    cursor:pointer; border-radius:6px; user-select:none; border:none; background:none;
-    transition:all 0.15s ease; font-family:var(--font-ui);
-  }
-  .menu-bar-tabs .tab-trigger:hover { background:var(--accent-subtle); color:var(--text); }
-  .menu-bar-tabs .tab-trigger.active { color:var(--accent-dark); background:var(--accent-subtle); }
+  .mobile-bar button:hover, .mobile-bar button.active { background:var(--accent); color:#fff; border-color:var(--accent); }
 
   /* ===== TOUCH TARGETS (mobile) ===== */
   @media (max-width:900px) {
@@ -573,13 +508,15 @@
   /* ===== READ-ONLY MODE ===== */
   body.readonly .guest-sidebar,
   body.readonly .menu-bar,
+  body.readonly .mobile-bar .hamburger-btn,
+  body.readonly .mobile-bar .drawer-btn,
   body.readonly .stats-bar,
   body.readonly .selection-info,
   body.readonly .ctx-menu,
-  body.readonly .seat .remove-btn,
-  body.readonly .bottom-tabs { display:none !important; }
+  body.readonly .seat .remove-btn { display:none !important; }
   body.readonly header .hero-search { display:none; }
   body.readonly .readonly-bar { display:flex !important; }
+  body.readonly .mobile-bar { display:none !important; }
   body.readonly .floor-plan { padding:1rem; }
   body.readonly .seat { cursor:default; }
   body.readonly .seat:hover { background:var(--seat-empty); border-color:var(--border); box-shadow:none; }
@@ -627,6 +564,11 @@
   <span class="stat">Open Seats: <strong id="openSeats">0</strong></span>
 </div>
 
+<div class="mobile-bar">
+  <button class="hamburger-btn" onclick="toggleToolbar()">&#9776; Tools</button>
+  <button class="drawer-btn" onclick="toggleDrawer()">&#128101; Guests</button>
+  <input type="text" id="seatSearchMobile" class="search-box" placeholder="Find a guest by name..." oninput="syncSearch(this)" style="flex:1;min-height:48px;font-size:0.95rem;">
+</div>
 
 <div class="readonly-bar">
   <div class="readonly-search-wrap">
@@ -696,11 +638,6 @@
       <div class="menu-option" onclick="showAbout();closeAllMenus()">About</div>
     </div>
   </div>
-  <div class="menu-bar-tabs">
-    <button class="tab-trigger active" data-tab="tables" onclick="switchDesktopTab('tables')">Tables</button>
-    <button class="tab-trigger" data-tab="aisles" onclick="switchDesktopTab('aisles')">Aisles</button>
-    <button class="tab-trigger" data-tab="guests" onclick="switchDesktopTab('guests')">Guests</button>
-  </div>
 </nav>
 <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
 
@@ -714,52 +651,10 @@
     <div class="guest-list" id="guestList"></div>
   </div>
 
-  <div class="aisles-placeholder" id="aislesPlaceholder">
-    <div class="placeholder-content">
-      <span style="font-size:2.5rem">&#127963;</span>
-      <h3>Ceremony Aisle Layout</h3>
-      <p>Coming soon</p>
-    </div>
-  </div>
-
   <div class="floor-plan" id="floorPlan">
     <div class="venue" id="venue"></div>
   </div>
 </div>
-
-<div class="search-panel" id="searchPanel">
-  <div class="search-panel-header">
-    <div class="hero-search" style="width:100%">
-      <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-      </svg>
-      <input type="text" id="searchPanelInput" class="hero-search-input"
-             placeholder="Find a guest by name..." oninput="searchPanelFilter(this.value)">
-    </div>
-  </div>
-  <div class="search-panel-results" id="searchPanelResults"></div>
-</div>
-<div class="search-panel-overlay" id="searchPanelOverlay" onclick="closeSearchPanel()"></div>
-
-<nav class="bottom-tabs" id="bottomTabs">
-  <button class="tab-btn" data-tab="aisles" onclick="switchTab('aisles')">
-    <span class="tab-icon">&#127963;</span>
-    <span class="tab-label">Aisles</span>
-  </button>
-  <button class="tab-btn active" data-tab="tables" onclick="switchTab('tables')">
-    <span class="tab-icon">&#129681;</span>
-    <span class="tab-label">Tables</span>
-  </button>
-  <button class="tab-btn" data-tab="guests" onclick="switchTab('guests')">
-    <span class="tab-icon">&#128101;</span>
-    <span class="tab-label">Guests</span>
-  </button>
-  <button class="tab-btn" data-tab="search" onclick="switchTab('search')">
-    <span class="tab-icon">&#128269;</span>
-    <span class="tab-label">Search</span>
-  </button>
-</nav>
 
 <div class="zoom-controls">
   <button onclick="zoomIn()" title="Zoom in">+</button>
@@ -2655,14 +2550,14 @@ function addTable() {
 // ===== GUEST SEARCH (Phase 4) =====
 function syncSearch(source) {
   const val = source.value;
-  document.querySelectorAll('#seatSearch, #seatSearchReadonly').forEach(el => {
+  document.querySelectorAll('#seatSearch, #seatSearchMobile, #seatSearchReadonly').forEach(el => {
     if (el !== source) el.value = val;
   });
   applyGuestSearch();
 }
 
 function applyGuestSearch() {
-  const el = document.getElementById('seatSearchReadonly') || document.getElementById('seatSearch');
+  const el = document.getElementById('seatSearchReadonly') || document.getElementById('seatSearchMobile') || document.getElementById('seatSearch');
   const q = (el ? el.value : '').trim().toLowerCase();
   // Clear previous highlights
   document.querySelectorAll('.seat.search-hit').forEach(el => el.classList.remove('search-hit'));
@@ -2893,142 +2788,16 @@ function showAbout() {
   document.getElementById('aboutModal').classList.add('active');
 }
 
-// ===== MOBILE TAB NAVIGATION =====
-let activeTab = 'tables';
-
-function switchTab(tab) {
-  if (tab === 'search' && document.getElementById('searchPanel').classList.contains('open')) {
-    closeSearchPanel();
-    return;
-  }
-
-  activeTab = (tab === 'search') ? activeTab : tab;
-
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  if (tab === 'search') {
-    document.querySelector('.tab-btn[data-tab="search"]').classList.add('active');
-    document.querySelector('.tab-btn[data-tab="' + activeTab + '"]')?.classList.add('active');
-  } else {
-    document.querySelector('.tab-btn[data-tab="' + tab + '"]').classList.add('active');
-  }
-
-  const floorPlan = document.getElementById('floorPlan');
+// ===== MOBILE TOGGLES =====
+function toggleToolbar() {
+  // On mobile, toggle the menu bar visibility
+  const bar = document.querySelector('.menu-bar');
+  bar.style.display = bar.style.display === 'none' ? 'flex' : 'none';
+  document.querySelector('.guest-sidebar').classList.remove('drawer-open');
+}
+function toggleDrawer() {
   const sidebar = document.querySelector('.guest-sidebar');
-  const aisles = document.getElementById('aislesPlaceholder');
-
-  floorPlan.style.display = (tab === 'tables' || tab === 'search') ? '' : 'none';
-  aisles.classList.toggle('active', tab === 'aisles');
-  sidebar.classList.toggle('tab-active', tab === 'guests');
-
-  if (tab !== 'guests') sidebar.classList.remove('tab-active');
-  if (tab === 'search') openSearchPanel();
-  if (tab !== 'search') closeSearchPanel();
-
-  document.querySelectorAll('.menu-bar-tabs .tab-trigger').forEach(t => {
-    t.classList.toggle('active', t.dataset.tab === activeTab);
-  });
-}
-
-function restoreActiveTab() {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector('.tab-btn[data-tab="' + activeTab + '"]')?.classList.add('active');
-}
-
-function openSearchPanel() {
-  const panel = document.getElementById('searchPanel');
-  const overlay = document.getElementById('searchPanelOverlay');
-  panel.style.display = 'flex';
-  overlay.style.display = 'block';
-  void panel.offsetHeight;
-  panel.classList.add('open');
-  overlay.classList.add('open');
-  document.getElementById('searchPanelInput').focus();
-}
-
-function closeSearchPanel() {
-  const panel = document.getElementById('searchPanel');
-  const overlay = document.getElementById('searchPanelOverlay');
-  panel.classList.remove('open');
-  overlay.classList.remove('open');
-  panel.addEventListener('transitionend', () => {
-    if (!panel.classList.contains('open')) panel.style.display = 'none';
-  }, { once: true });
-  document.querySelector('.tab-btn[data-tab="search"]')?.classList.remove('active');
-  restoreActiveTab();
-}
-
-function searchPanelFilter(query) {
-  const results = document.getElementById('searchPanelResults');
-  const q = query.trim().toLowerCase();
-  if (!q || q.length < 2) { results.innerHTML = ''; return; }
-
-  const matches = [];
-
-  for (const tid in seatAssignments) {
-    const label = tid === 'head' ? 'Head Table' : 'Table ' + (tables[tid]?.label || tid);
-    seatAssignments[tid].forEach((seat, idx) => {
-      if (seat.name && seat.name.toLowerCase().includes(q)) {
-        matches.push({ name: seat.name, table: label, tid, idx, seated: true });
-      }
-    });
-  }
-
-  allGuests.forEach(g => {
-    const name = typeof g === 'object' ? g.name : g;
-    if (name && name.toLowerCase().includes(q) && !matches.find(m => m.name.toLowerCase() === name.toLowerCase())) {
-      matches.push({ name, table: null, tid: null, idx: null, seated: false });
-    }
-  });
-
-  results.innerHTML = matches.slice(0, 20).map(m => {
-    const safeName = esc(m.name).replace(/'/g, '&#39;');
-    return '<div class="search-result-item" onclick="searchResultTap(\'' + esc(m.tid) + '\',' + m.idx + ',\'' + safeName + '\',' + m.seated + ')">' +
-      '<div><span class="result-name">' + esc(m.name) + '</span> ' +
-      '<span class="result-info">' + (m.table ? esc(m.table) : 'Not seated') + '</span></div>' +
-      '<span class="result-status ' + (m.seated ? 'seated' : 'unseated') + '">' + (m.seated ? 'Seated' : 'Unseated') + '</span></div>';
-  }).join('');
-}
-
-function searchResultTap(tid, idx, name, seated) {
-  closeSearchPanel();
-  if (seated && tid && tid !== 'null') {
-    document.getElementById('seatSearch').value = name;
-    applyGuestSearch();
-  } else {
-    // Unseated guest: switch to Guests tab and highlight in sidebar
-    switchTab('guests');
-    const guestSearch = document.getElementById('guestSearch');
-    if (guestSearch) {
-      guestSearch.value = name;
-      filterGuests();
-    }
-    // Scroll to and flash the matching guest item
-    setTimeout(() => {
-      const items = document.querySelectorAll('.guest-item');
-      for (const item of items) {
-        if (item.textContent.toLowerCase().includes(name.toLowerCase())) {
-          item.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          item.style.background = 'var(--accent-light)';
-          setTimeout(() => item.style.background = '', 1200);
-          break;
-        }
-      }
-    }, 100);
-  }
-}
-
-function switchDesktopTab(tab) {
-  if (tab === 'guests') {
-    toggleGuestSidebar();
-    return;
-  }
-  const floorPlan = document.getElementById('floorPlan');
-  const aisles = document.getElementById('aislesPlaceholder');
-  floorPlan.style.display = tab === 'tables' ? '' : 'none';
-  aisles.classList.toggle('active', tab === 'aisles');
-  document.querySelectorAll('.menu-bar-tabs .tab-trigger').forEach(t => {
-    t.classList.toggle('active', t.dataset.tab === tab);
-  });
+  sidebar.classList.toggle('drawer-open');
 }
 
 // ===== FUZZY MATCH REVIEW MODAL =====
