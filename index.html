@@ -800,8 +800,8 @@ function migrateSaveData(data) {
   return result;
 }
 
-function loadSaveData(data) {
-  pushUndo();
+function loadSaveData(data, skipUndo) {
+  if (!skipUndo) pushUndo();
   data = migrateSaveData(data);
   if (data.seats) {
     for (const tid in data.seats) { if (seatAssignments[tid]) seatAssignments[tid] = data.seats[tid]; }
@@ -969,7 +969,7 @@ async function loadFromCloud() {
     const d = data.data;
     if (!d.seats || Object.keys(d.seats).length === 0) return false;
     isLoadingFromCloud = true;
-    loadSaveData(d);
+    loadSaveData(d, true);
     isLoadingFromCloud = false;
     return true;
   } catch (e) { return false; }
@@ -999,7 +999,7 @@ if (sb) {
   if (!cloudLoaded) {
     const saved = localStorage.getItem('wedding-seating-bora-jim');
     if (saved) {
-      try { loadSaveData(JSON.parse(saved)); } catch(e) {}
+      try { loadSaveData(JSON.parse(saved), true); } catch(e) {}
     }
     // Push localStorage data to cloud so it's shared
     saveToCloud();
