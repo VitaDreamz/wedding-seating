@@ -844,7 +844,7 @@ function importJSON(e) {
   e.target.value = '';
 }
 function exportCSV() {
-  const rows = [['First Name', 'Last Name', 'Table', 'Seat']];
+  const rows = [['First Name', 'Last Name', 'Table', 'Seat', 'Full Name']];
   for (const tid in tables) {
     const label = tid === 'head' ? 'Head Table' : tables[tid].label;
     seatAssignments[tid].forEach((name, i) => {
@@ -852,7 +852,7 @@ function exportCSV() {
       const lastSpace = name.lastIndexOf(' ');
       const first = lastSpace > 0 ? name.substring(0, lastSpace) : name;
       const last = lastSpace > 0 ? name.substring(lastSpace + 1) : '';
-      rows.push([first, last, label, tid === 'head' ? HEAD_SEAT_NUM[i] : i + 1]);
+      rows.push([first, last, label, tid === 'head' ? HEAD_SEAT_NUM[i] : i + 1, name]);
     });
   }
   // Sort alphabetically by last name, then first name
