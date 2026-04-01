@@ -216,7 +216,11 @@
     position:sticky; top:0; background:var(--bg); padding:0.5rem 0.6rem;
     text-align:left; font-size:0.72rem; color:var(--text-light); text-transform:uppercase;
     letter-spacing:0.5px; border-bottom:2px solid var(--border); white-space:nowrap; z-index:1;
+    cursor:pointer; user-select:none;
   }
+  .data-table th:hover { color:var(--accent-dark); }
+  .data-table th .sort-arrow { font-size:0.6rem; margin-left:3px; opacity:0.4; }
+  .data-table th.sorted .sort-arrow { opacity:1; color:var(--accent); }
   .data-table td {
     padding:0.35rem 0.5rem; border-bottom:1px solid var(--border); vertical-align:top;
   }
@@ -476,17 +480,17 @@
       <table class="data-table">
         <thead>
           <tr>
-            <th class="col-name">Name</th>
-            <th class="col-table">Table</th>
-            <th class="col-seat">Seat</th>
-            <th class="col-meal">Meal</th>
-            <th class="col-field">Dietary</th>
-            <th class="col-rsvp">RSVP</th>
-            <th class="col-field">Side</th>
-            <th class="col-field">Age Group</th>
-            <th class="col-field">Accessibility</th>
-            <th class="col-field">Group</th>
-            <th class="col-field">Notes</th>
+            <th class="col-name" onclick="sortDataBy('name')">Name <span class="sort-arrow"></span></th>
+            <th class="col-table" onclick="sortDataBy('table')">Table <span class="sort-arrow"></span></th>
+            <th class="col-seat" onclick="sortDataBy('seat')">Seat <span class="sort-arrow"></span></th>
+            <th class="col-meal" onclick="sortDataBy('meal')">Meal <span class="sort-arrow"></span></th>
+            <th class="col-field" onclick="sortDataBy('dietary')">Dietary <span class="sort-arrow"></span></th>
+            <th class="col-rsvp" onclick="sortDataBy('rsvp')">RSVP <span class="sort-arrow"></span></th>
+            <th class="col-field" onclick="sortDataBy('side')">Side <span class="sort-arrow"></span></th>
+            <th class="col-field" onclick="sortDataBy('ageGroup')">Age Group <span class="sort-arrow"></span></th>
+            <th class="col-field" onclick="sortDataBy('accessibility')">Accessibility <span class="sort-arrow"></span></th>
+            <th class="col-field" onclick="sortDataBy('group')">Group <span class="sort-arrow"></span></th>
+            <th class="col-field" onclick="sortDataBy('notes')">Notes <span class="sort-arrow"></span></th>
           </tr>
         </thead>
         <tbody id="dataBody"></tbody>
@@ -2397,6 +2401,34 @@ function toggleDrawer() {
 }
 
 // ===== GUEST DATA VIEWER =====
+let dataSortCol = 'name';
+let dataSortDir = 'asc'; // 'asc' or 'desc'
+
+function sortDataBy(col) {
+  if (dataSortCol === col) {
+    dataSortDir = dataSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    dataSortCol = col;
+    dataSortDir = 'asc';
+  }
+  renderGuestDataRows();
+  // Update header arrows
+  document.querySelectorAll('.data-table th').forEach(th => {
+    th.classList.remove('sorted');
+    const arrow = th.querySelector('.sort-arrow');
+    if (arrow) arrow.textContent = '';
+  });
+  const headers = ['name','table','seat','meal','dietary','rsvp','side','ageGroup','accessibility','group','notes'];
+  const idx = headers.indexOf(col);
+  if (idx >= 0) {
+    const th = document.querySelectorAll('.data-table th')[idx];
+    if (th) {
+      th.classList.add('sorted');
+      th.querySelector('.sort-arrow').textContent = dataSortDir === 'asc' ? '▲' : '▼';
+    }
+  }
+}
+
 function openGuestData() {
   const overlay = document.getElementById('dataOverlay');
   overlay.classList.add('active');
@@ -2459,17 +2491,40 @@ function renderGuestDataRows() {
     rows.push({ type: 'pending', pendingIdx: pi, pm, linkedTo: null });
   });
 
-  // Sort seated rows alphabetically, but keep pending rows right after their linked guest
-  // We already interleaved them, so just sort the top-level seated ones
-  // Actually let's sort the whole thing by name but keep pending glued to their match
+  // Sort seated rows by current column, keep pending rows glued after their linked guest
   const sortedRows = [];
   const seatedRows = rows.filter(r => r.type === 'seated');
   const pendingOnly = rows.filter(r => r.type === 'pending' && r.linkedTo == null);
-  seatedRows.sort((a, b) => a.seat.name.localeCompare(b.seat.name));
+
+  // Table sort order: head=0, then numeric by label
+  function tableOrder(tid) {
+    if (tid === 'head') return -1;
+    const n = parseInt(tables[tid]?.label || tid);
+    return isNaN(n) ? 999 : n;
+  }
+
+  const dir = dataSortDir === 'asc' ? 1 : -1;
+  seatedRows.sort((a, b) => {
+    let cmp = 0;
+    switch (dataSortCol) {
+      case 'name': cmp = a.seat.name.localeCompare(b.seat.name); break;
+      case 'table': cmp = tableOrder(a.tid) - tableOrder(b.tid) || a.idx - b.idx; break;
+      case 'seat': cmp = tableOrder(a.tid) - tableOrder(b.tid) || a.seatNum - b.seatNum; break;
+      case 'meal': cmp = (a.seat.meal||'').localeCompare(b.seat.meal||''); break;
+      case 'dietary': cmp = (a.seat.dietary||'').localeCompare(b.seat.dietary||''); break;
+      case 'rsvp': cmp = (a.seat.rsvp||'').localeCompare(b.seat.rsvp||''); break;
+      case 'side': cmp = (a.seat.side||'').localeCompare(b.seat.side||''); break;
+      case 'ageGroup': cmp = (a.seat.ageGroup||'').localeCompare(b.seat.ageGroup||''); break;
+      case 'accessibility': cmp = (a.seat.accessibility||'').localeCompare(b.seat.accessibility||''); break;
+      case 'group': cmp = (a.seat.group||'').localeCompare(b.seat.group||''); break;
+      case 'notes': cmp = (a.seat.notes||'').localeCompare(b.seat.notes||''); break;
+      default: cmp = a.seat.name.localeCompare(b.seat.name);
+    }
+    return cmp * dir;
+  });
 
   for (const sr of seatedRows) {
     sortedRows.push(sr);
-    // Find pending rows linked to this seated row
     const key = sr.tid + ':' + sr.idx;
     if (pendingByKey[key]) {
       for (const pi of pendingByKey[key]) {
@@ -2479,7 +2534,6 @@ function renderGuestDataRows() {
       }
     }
   }
-  // Append unlinked pending at end
   pendingOnly.sort((a, b) => a.pm.csvName.localeCompare(b.pm.csvName));
   sortedRows.push(...pendingOnly);
 
