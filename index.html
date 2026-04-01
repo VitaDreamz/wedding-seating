@@ -150,7 +150,7 @@
   /* ===== CANVAS ZOOM/PAN ===== */
   .floor-plan { position:relative; }
   .venue { transform-origin:0 0; }
-  .zoom-controls { position:absolute; bottom:12px; right:12px; display:flex; gap:4px; z-index:300; }
+  .zoom-controls { position:fixed; bottom:12px; right:12px; display:flex; gap:4px; z-index:300; }
   .zoom-controls button { width:36px; height:36px; border:1px solid var(--border); border-radius:6px; background:var(--card); font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow); }
   .zoom-controls button:hover { background:var(--accent-light); color:#fff; }
   @media (max-width:500px) {
@@ -420,12 +420,13 @@
 
   <div class="floor-plan" id="floorPlan">
     <div class="venue" id="venue"></div>
-    <div class="zoom-controls">
-      <button onclick="zoomIn()" title="Zoom in">+</button>
-      <button onclick="zoomOut()" title="Zoom out">&minus;</button>
-      <button onclick="resetView()" title="Reset view" style="font-size:0.7rem;width:auto;padding:0 8px;">Reset</button>
-    </div>
   </div>
+</div>
+
+<div class="zoom-controls">
+  <button onclick="zoomIn()" title="Zoom in">+</button>
+  <button onclick="zoomOut()" title="Zoom out">&minus;</button>
+  <button onclick="resetView()" title="Reset view" style="font-size:0.7rem;width:auto;padding:0 8px;">Reset</button>
 </div>
 
 <div class="selection-info" id="selectionInfo">
