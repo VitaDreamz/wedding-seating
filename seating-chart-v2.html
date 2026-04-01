@@ -39,15 +39,60 @@
   .stat { color:var(--text-light); }
   .stat strong { color:var(--accent-dark); font-size:1.05rem; }
 
-  /* ===== CONTROLS ===== */
-  .controls { display:flex; justify-content:center; gap:0.5rem; padding:0.6rem; flex-wrap:wrap; background:var(--card); border-bottom:1px solid var(--border); }
-  .controls button { padding:0.45rem 0.9rem; border:1px solid var(--border); border-radius:6px; background:var(--card); color:var(--text); cursor:pointer; font-size:0.82rem; transition:all 0.2s; }
-  .controls button:hover { background:var(--accent-light); color:#fff; border-color:var(--accent-light); }
-  .controls button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
-  .controls button.primary:hover { background:var(--accent-dark); }
-  .controls button.danger { color:var(--danger); border-color:var(--danger); }
-  .controls button.danger:hover { background:var(--danger); color:#fff; }
-  .controls button:disabled { opacity:0.4; cursor:not-allowed; }
+  /* ===== MENU BAR ===== */
+  .menu-bar {
+    display:flex; align-items:center; background:var(--card); border-bottom:1px solid var(--border);
+    padding:0 0.3rem; height:32px; position:relative; z-index:900; flex-shrink:0;
+  }
+  .menu-item { position:relative; }
+  .menu-trigger {
+    padding:4px 10px; font-size:0.82rem; color:var(--text); cursor:pointer; border-radius:4px;
+    user-select:none; line-height:24px;
+  }
+  .menu-trigger:hover, .menu-item.open .menu-trigger { background:var(--border); }
+  .menu-dropdown {
+    display:none; position:absolute; top:100%; left:0; min-width:220px;
+    background:var(--card); border:1px solid var(--border); border-radius:6px;
+    box-shadow:0 4px 16px rgba(0,0,0,0.12); padding:4px 0; z-index:910;
+  }
+  .menu-item.open .menu-dropdown { display:block; }
+  .menu-option {
+    padding:6px 16px; font-size:0.8rem; cursor:pointer; display:flex;
+    align-items:center; justify-content:space-between; color:var(--text);
+  }
+  .menu-option:hover { background:var(--seat-hover); }
+  .menu-option.disabled { opacity:0.35; pointer-events:none; }
+  .menu-option.danger { color:var(--danger); }
+  .menu-option .shortcut { font-size:0.7rem; color:var(--text-light); margin-left:auto; padding-left:16px; }
+  .menu-sep { height:1px; background:var(--border); margin:4px 8px; }
+  .menu-label { padding:4px 16px 2px; font-size:0.65rem; color:var(--text-light); text-transform:uppercase; letter-spacing:0.5px; }
+
+  /* ===== TOOLBAR ===== */
+  .app-toolbar {
+    display:flex; align-items:center; padding:0.3rem 0.6rem; background:var(--card);
+    border-bottom:1px solid var(--border); flex-shrink:0;
+  }
+  .app-toolbar .search-box { width:220px; }
+
+  /* ===== COPIED TOOLTIP ===== */
+  .copied-tooltip {
+    position:fixed; padding:4px 12px; background:var(--accent-dark); color:#fff;
+    border-radius:4px; font-size:0.75rem; pointer-events:none; z-index:2000;
+    animation:copiedFade 1.5s ease forwards;
+  }
+  @keyframes copiedFade { 0%{opacity:1;transform:translateY(0)} 70%{opacity:1} 100%{opacity:0;transform:translateY(-8px)} }
+
+  /* ===== PRESENTATION MODE ===== */
+  body.presentation header,
+  body.presentation .stats-bar,
+  body.presentation .menu-bar,
+  body.presentation .app-toolbar,
+  body.presentation .mobile-bar,
+  body.presentation .guest-sidebar,
+  body.presentation .selection-info,
+  body.presentation .zoom-controls { display:none !important; }
+  body.presentation .main-layout { flex:1; }
+  body.presentation .floor-plan { padding:0.5rem; }
 
   /* ===== MAIN LAYOUT ===== */
   .main-layout { display:flex; flex:1; min-height:0; overflow:hidden; }
@@ -339,7 +384,7 @@
   @page { size: landscape; margin: 0.3in; }
   @media print {
     :root { --seat-w:28px; --seat-h:80px; --seat-gap:1px; --seg-pad:1px; }
-    .guest-sidebar,.controls,.stats-bar,.selection-info,.remove-btn,.ctx-menu { display:none !important; }
+    .guest-sidebar,.menu-bar,.app-toolbar,.stats-bar,.selection-info,.remove-btn,.ctx-menu { display:none !important; }
     body { background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     header { padding:0.3rem; border:none; background:none; }
     header h1 { font-size:1.2rem; }
@@ -377,13 +422,12 @@
     .guest-sidebar { width:100%; min-width:unset; border-right:none; border-bottom:1px solid var(--border); max-height:0; overflow:hidden; transition:max-height 0.3s ease; }
     .guest-sidebar.drawer-open { max-height:50vh; overflow-y:auto; }
     .floor-plan { overflow:auto; flex:1; }
-    .controls { flex-wrap:nowrap; overflow:hidden; max-height:0; padding:0 0.6rem; transition:max-height 0.3s ease, padding 0.3s ease; }
-    .controls.toolbar-open { max-height:300px; padding:0.6rem; flex-wrap:wrap; }
+    .menu-bar { overflow-x:auto; }
+    .app-toolbar { display:none; }
     .mobile-bar { display:flex !important; }
   }
   @media (min-width:901px) {
     .guest-sidebar { max-height:none !important; overflow-y:auto !important; }
-    .controls { max-height:none !important; padding:0.6rem !important; }
   }
 
   /* ===== MOBILE BAR ===== */
@@ -407,7 +451,8 @@
 
   /* ===== READ-ONLY MODE ===== */
   body.readonly .guest-sidebar,
-  body.readonly .controls,
+  body.readonly .menu-bar,
+  body.readonly .app-toolbar,
   body.readonly .mobile-bar .hamburger-btn,
   body.readonly .mobile-bar .drawer-btn,
   body.readonly .stats-bar,
@@ -459,25 +504,68 @@
   <button onclick="shareReadonly()">Share View</button>
 </div>
 
-<div class="controls">
-  <button onclick="undo()" id="undoBtn" disabled title="Ctrl+Z">&#8617; Undo</button>
-  <button onclick="redo()" id="redoBtn" disabled title="Ctrl+Shift+Z">&#8618; Redo</button>
-  <button class="primary" onclick="saveChart()">Save to Browser</button>
-  <button onclick="loadChart()">Load from Browser</button>
-  <button onclick="exportJSON()">Download Save File</button>
-  <button onclick="document.getElementById('importFile').click()">Load Save File</button>
-  <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
-  <button onclick="exportCSV()">Export CSV</button>
-  <button onclick="importCSV()">Import CSV</button>
-  <button onclick="importRileyGray()">Import Riley &amp; Gray</button>
-  <button onclick="exportText()">Export Guest List</button>
-  <button onclick="autoSeat()">Auto-Fill Empty</button>
-  <button onclick="window.print()">Print / Save PDF</button>
-  <button onclick="addTable()">+ Add Table</button>
-  <button class="danger" onclick="clearAll()">Clear All</button>
-  <button onclick="shareReadonly()">Share View</button>
-  <button onclick="openGuestData()">Guest Data</button>
-  <input type="text" id="seatSearch" class="search-box" placeholder="Find seated guest..." oninput="applyGuestSearch()" style="width:180px;margin-left:0.5rem;">
+<nav class="menu-bar" id="menuBar">
+  <div class="menu-item" data-menu="file">
+    <span class="menu-trigger" onclick="toggleMenu('file')">File</span>
+    <div class="menu-dropdown">
+      <div class="menu-option" onclick="importRileyGray();closeAllMenus()">Import Riley &amp; Gray CSV</div>
+      <div class="menu-option" onclick="importCSV();closeAllMenus()">Import Guest CSV</div>
+      <div class="menu-sep"></div>
+      <div class="menu-option" onclick="exportCSV();closeAllMenus()">Export CSV</div>
+      <div class="menu-option" onclick="exportText();closeAllMenus()">Export Seating Text</div>
+      <div class="menu-option" onclick="window.print();closeAllMenus()">Print / Save PDF</div>
+      <div class="menu-sep"></div>
+      <div class="menu-option" onclick="saveChart();closeAllMenus()">Save <span class="shortcut">Ctrl+S</span></div>
+      <div class="menu-sep"></div>
+      <div class="menu-label">Local Backup</div>
+      <div class="menu-option" onclick="loadChart();closeAllMenus()">Load from Browser</div>
+      <div class="menu-option" onclick="exportJSON();closeAllMenus()">Download Save File</div>
+      <div class="menu-option" onclick="document.getElementById('importFile').click();closeAllMenus()">Load Save File</div>
+    </div>
+  </div>
+  <div class="menu-item" data-menu="edit">
+    <span class="menu-trigger" onclick="toggleMenu('edit')">Edit</span>
+    <div class="menu-dropdown">
+      <div class="menu-option" id="menuUndo" onclick="undo();closeAllMenus()">Undo <span class="shortcut">Ctrl+Z</span></div>
+      <div class="menu-option" id="menuRedo" onclick="redo();closeAllMenus()">Redo <span class="shortcut">Ctrl+Shift+Z</span></div>
+      <div class="menu-sep"></div>
+      <div class="menu-option" onclick="addTable();closeAllMenus()">Add Table</div>
+      <div class="menu-option" onclick="autoSeat();closeAllMenus()">Auto-Fill Empty Seats</div>
+      <div class="menu-sep"></div>
+      <div class="menu-option danger" onclick="clearAll();closeAllMenus()">Clear All Seats</div>
+    </div>
+  </div>
+  <div class="menu-item" data-menu="view">
+    <span class="menu-trigger" onclick="toggleMenu('view')">View</span>
+    <div class="menu-dropdown">
+      <div class="menu-option" onclick="openGuestData();closeAllMenus()">Guest Data</div>
+      <div class="menu-sep"></div>
+      <div class="menu-option" onclick="zoomIn();closeAllMenus()">Zoom In <span class="shortcut">Ctrl++</span></div>
+      <div class="menu-option" onclick="zoomOut();closeAllMenus()">Zoom Out <span class="shortcut">Ctrl+&minus;</span></div>
+      <div class="menu-option" onclick="resetView();closeAllMenus()">Reset View</div>
+      <div class="menu-sep"></div>
+      <div class="menu-option" onclick="toggleGuestSidebar();closeAllMenus()">Toggle Guest Sidebar</div>
+      <div class="menu-option" onclick="togglePresentationMode();closeAllMenus()">Presentation Mode</div>
+    </div>
+  </div>
+  <div class="menu-item" data-menu="share">
+    <span class="menu-trigger" onclick="toggleMenu('share')">Share</span>
+    <div class="menu-dropdown">
+      <div class="menu-option" onclick="copyViewLink(event)">Copy View Link <span class="shortcut">read-only</span></div>
+      <div class="menu-option" onclick="copyEditLink(event)">Copy Edit Link <span class="shortcut">full access</span></div>
+    </div>
+  </div>
+  <div class="menu-item" data-menu="help">
+    <span class="menu-trigger" onclick="toggleMenu('help')">Help</span>
+    <div class="menu-dropdown">
+      <div class="menu-option" onclick="showKeyboardShortcuts();closeAllMenus()">Keyboard Shortcuts</div>
+      <div class="menu-option" onclick="showAbout();closeAllMenus()">About</div>
+    </div>
+  </div>
+</nav>
+<input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
+<div class="app-toolbar">
+  <input type="text" id="seatSearch" class="search-box" placeholder="Find seated guest..." oninput="applyGuestSearch()">
 </div>
 
 <div class="main-layout">
@@ -517,6 +605,32 @@
       <span class="status" id="reviewStatus"></span>
       <button onclick="closeReviewModal()">Done</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="shortcutsModal" onclick="if(event.target===this)this.classList.remove('active')">
+  <div class="modal" style="max-width:480px">
+    <h3>Keyboard Shortcuts</h3>
+    <table style="width:100%;font-size:0.82rem;border-collapse:collapse">
+      <tr><td style="padding:4px 8px"><kbd style="background:var(--bg);padding:2px 6px;border:1px solid var(--border);border-radius:3px;font-size:0.75rem">Ctrl+Z</kbd></td><td>Undo</td></tr>
+      <tr><td style="padding:4px 8px"><kbd style="background:var(--bg);padding:2px 6px;border:1px solid var(--border);border-radius:3px;font-size:0.75rem">Ctrl+Shift+Z</kbd></td><td>Redo</td></tr>
+      <tr><td style="padding:4px 8px"><kbd style="background:var(--bg);padding:2px 6px;border:1px solid var(--border);border-radius:3px;font-size:0.75rem">Ctrl+S</kbd></td><td>Save to Browser</td></tr>
+      <tr><td style="padding:4px 8px"><kbd style="background:var(--bg);padding:2px 6px;border:1px solid var(--border);border-radius:3px;font-size:0.75rem">Ctrl+G</kbd></td><td>Group Selected Tables</td></tr>
+      <tr><td style="padding:4px 8px"><kbd style="background:var(--bg);padding:2px 6px;border:1px solid var(--border);border-radius:3px;font-size:0.75rem">Ctrl+Shift+G</kbd></td><td>Ungroup Selected Tables</td></tr>
+      <tr><td style="padding:4px 8px"><kbd style="background:var(--bg);padding:2px 6px;border:1px solid var(--border);border-radius:3px;font-size:0.75rem">Escape</kbd></td><td>Clear Selection / Exit Presentation</td></tr>
+      <tr><td style="padding:4px 8px"><kbd style="background:var(--bg);padding:2px 6px;border:1px solid var(--border);border-radius:3px;font-size:0.75rem">Shift+Drag</kbd></td><td>Rubber Band Select Tables</td></tr>
+      <tr><td style="padding:4px 8px"><kbd style="background:var(--bg);padding:2px 6px;border:1px solid var(--border);border-radius:3px;font-size:0.75rem">Scroll Wheel</kbd></td><td>Zoom In/Out</td></tr>
+    </table>
+    <div style="margin-top:1rem;text-align:right"><button onclick="document.getElementById('shortcutsModal').classList.remove('active')" style="padding:0.4rem 1rem;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--card)">Close</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="aboutModal" onclick="if(event.target===this)this.classList.remove('active')">
+  <div class="modal" style="text-align:center">
+    <h3>Bora &amp; Jim Seating Chart</h3>
+    <p style="color:var(--text-light);font-size:0.85rem;margin-bottom:0.5rem">May 9, 2026 &middot; Rancho Las Lomas</p>
+    <p style="font-size:0.8rem;color:var(--text-light)">Version 2 &middot; Drag &amp; drop seating with live sync</p>
+    <div style="margin-top:1rem"><button onclick="document.getElementById('aboutModal').classList.remove('active')" style="padding:0.4rem 1rem;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--card)">Close</button></div>
   </div>
 </div>
 
@@ -778,8 +892,10 @@ function redo() {
 }
 
 function updateUndoButtons() {
-  document.getElementById('undoBtn').disabled = undoStack.length === 0;
-  document.getElementById('redoBtn').disabled = redoStack.length === 0;
+  const mu = document.getElementById('menuUndo');
+  const mr = document.getElementById('menuRedo');
+  if (mu) mu.classList.toggle('disabled', undoStack.length === 0);
+  if (mr) mr.classList.toggle('disabled', redoStack.length === 0);
 }
 
 let currentSeatRef = null;
@@ -2370,7 +2486,12 @@ function applyGuestSearch() {
 
 // ===== KEYBOARD =====
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { clearSelection(); clearTableSelection(); }
+  if (e.key === 'Escape') {
+    if (document.body.classList.contains('presentation')) { togglePresentationMode(); return; }
+    closeAllMenus();
+    clearSelection(); clearTableSelection();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveChart(); }
   if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
   if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) { e.preventDefault(); redo(); }
   if ((e.ctrlKey || e.metaKey) && e.key === 'g' && !e.shiftKey) { e.preventDefault(); groupSelected(); }
@@ -2382,7 +2503,7 @@ document.getElementById('venue').addEventListener('pointerdown', onVenuePointerD
 
 // Click on venue background clears selection
 document.addEventListener('click', e => {
-  if (e.target.closest('.seat') || e.target.closest('.table-pos') || e.target.closest('.guest-item') || e.target.closest('.modal') || e.target.closest('.controls') || e.target.closest('.selection-info')) return;
+  if (e.target.closest('.seat') || e.target.closest('.table-pos') || e.target.closest('.guest-item') || e.target.closest('.modal') || e.target.closest('.menu-bar') || e.target.closest('.app-toolbar') || e.target.closest('.selection-info')) return;
   if (selectedSeats.size > 0 || pickedGuest) clearSelection();
 });
 
@@ -2470,16 +2591,103 @@ if (sb) {
     .subscribe();
 }
 
+// ===== MENU BAR =====
+function toggleMenu(name) {
+  const item = document.querySelector(`.menu-item[data-menu="${name}"]`);
+  const wasOpen = item.classList.contains('open');
+  closeAllMenus();
+  if (!wasOpen) {
+    item.classList.add('open');
+    // Enable hover-switch while a menu is open
+    document.querySelectorAll('.menu-trigger').forEach(t => {
+      t.onmouseenter = function() {
+        if (document.querySelector('.menu-item.open')) {
+          closeAllMenus();
+          this.parentElement.classList.add('open');
+        }
+      };
+    });
+    // Update undo/redo disabled state in menu
+    const mu = document.getElementById('menuUndo');
+    const mr = document.getElementById('menuRedo');
+    if (mu) mu.classList.toggle('disabled', undoStack.length === 0);
+    if (mr) mr.classList.toggle('disabled', redoStack.length === 0);
+  }
+}
+
+function closeAllMenus() {
+  document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('open'));
+  document.querySelectorAll('.menu-trigger').forEach(t => { t.onmouseenter = null; });
+}
+
+// Close menus on click outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.menu-bar')) closeAllMenus();
+});
+
+function copyViewLink(e) {
+  const url = window.location.origin + window.location.pathname + '?view=readonly';
+  if (navigator.share) {
+    navigator.share({ title: 'Bora & Jim Seating Chart (View)', url }).catch(() => {});
+    closeAllMenus();
+    return;
+  }
+  navigator.clipboard.writeText(url).then(() => showCopiedTooltip(e));
+  closeAllMenus();
+}
+
+function copyEditLink(e) {
+  const url = window.location.origin + window.location.pathname;
+  if (navigator.share) {
+    navigator.share({ title: 'Bora & Jim Seating Chart (Edit)', url }).catch(() => {});
+    closeAllMenus();
+    return;
+  }
+  if (!confirm('This link allows full editing. Share only with trusted collaborators.')) {
+    closeAllMenus();
+    return;
+  }
+  navigator.clipboard.writeText(url).then(() => showCopiedTooltip(e));
+  closeAllMenus();
+}
+
+function showCopiedTooltip(e) {
+  const tip = document.createElement('div');
+  tip.className = 'copied-tooltip';
+  tip.textContent = 'Copied!';
+  tip.style.left = (e?.clientX || 200) + 'px';
+  tip.style.top = (e?.clientY || 60) + 'px';
+  document.body.appendChild(tip);
+  setTimeout(() => tip.remove(), 1500);
+}
+
+function toggleGuestSidebar() {
+  const sidebar = document.querySelector('.guest-sidebar');
+  sidebar.style.display = sidebar.style.display === 'none' ? '' : 'none';
+}
+
+function togglePresentationMode() {
+  document.body.classList.toggle('presentation');
+}
+
+function showKeyboardShortcuts() {
+  document.getElementById('shortcutsModal').classList.add('active');
+}
+
+function showAbout() {
+  document.getElementById('aboutModal').classList.add('active');
+}
+
 // ===== MOBILE TOGGLES =====
 function toggleToolbar() {
-  const ctrl = document.querySelector('.controls');
-  ctrl.classList.toggle('toolbar-open');
+  // On mobile, toggle the menu bar visibility
+  const bar = document.querySelector('.menu-bar');
+  bar.style.display = bar.style.display === 'none' ? 'flex' : 'none';
   document.querySelector('.guest-sidebar').classList.remove('drawer-open');
 }
 function toggleDrawer() {
   const sidebar = document.querySelector('.guest-sidebar');
   sidebar.classList.toggle('drawer-open');
-  document.querySelector('.controls').classList.remove('toolbar-open');
 }
 
 // ===== FUZZY MATCH REVIEW MODAL =====
@@ -2899,14 +3107,7 @@ function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').re
 // ===== READ-ONLY MODE =====
 const IS_READONLY = new URLSearchParams(window.location.search).get('view') === 'readonly';
 
-function shareReadonly() {
-  const url = window.location.origin + window.location.pathname + '?view=readonly';
-  if (navigator.share) {
-    navigator.share({ title: 'Bora & Jim Seating Chart', url }).catch(() => {});
-  } else {
-    navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard!'));
-  }
-}
+function shareReadonly() { copyViewLink({}); }
 
 function initReadonlyMode() {
   if (!IS_READONLY) return;
